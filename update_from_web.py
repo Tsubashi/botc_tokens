@@ -10,7 +10,7 @@ import argparse
 import ssl
 import os.path
 from bs4 import BeautifulSoup
-from dataclasses import dataclass, asdict
+from role import Role
 from pathlib import Path
 from rich import print
 from rich.progress import (
@@ -22,35 +22,7 @@ from rich.progress import (
 )
 from rich.live import Live
 from rich.console import Group
-
-
-@dataclass
-class Role:
-    """A role in a script.
-
-    Attributes:
-        name: The name of the role.
-        ability: The description of the role.
-        type: The type of the role (Townsfolk, Outsider, Minion, Demon, or Traveller).
-        first_night: Whether the role wakes for a night action on the first night.
-        other_nights: Whether the role wakes for a night action on nights other than the first.
-        reminders: The number of reminders tokens the role has.
-        icon: The filename of the icon.
-        home_script: The name of the script in which the role is found.
-    """
-    name: str
-    ability: str = None
-    type: str = None
-    icon: str = None
-    first_night: bool = False
-    other_nights: bool = False
-    reminders: list = None
-    home_script: str = None
-
-    def __str__(self):
-        """Return a string representation of the role."""
-        return f"{self.name}: {self.ability}"
-
+from dataclasses import asdict
 
 wiki_soups = {}
 
@@ -101,7 +73,16 @@ def get_reminders(role_name):
         for bold in bold_list:
             text = bold.get_text()
             if text.isupper():
-                reminders.add(text)
+                disallowed_reminders = [
+                    "YOU ARE",
+                    "THIS PLAYER IS",
+                    "THIS CHARACTER SELECTED YOU",
+                    "THESE CHARACTERS ARE NOT IN PLAY",
+                    "THIS IS THE DEMON",
+                    "THESE ARE YOUR MINIONS",
+                ]
+                if text not in disallowed_reminders:
+                    reminders.add(text)
     return list(reminders)
 
 
