@@ -42,6 +42,7 @@ class Role:
     first_night: bool = False
     other_nights: bool = False
     reminders: list = None
+    affects_setup: bool = False
     home_script: str = None
 
     def __str__(self):
@@ -237,6 +238,10 @@ class Updater:
                 # Determine night actions
                 found_role.first_night = True if role['id'] in night_json['firstNight'] else False
                 found_role.other_nights = True if role['id'] in night_json['otherNight'] else False
+
+                # Check if the role affects setup
+                if "[" in found_role.ability:
+                    found_role.affects_setup = True
 
                 # Record home script and type
                 if not found_role.home_script:
