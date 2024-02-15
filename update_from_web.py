@@ -157,6 +157,8 @@ class Updater:
         print("[green]Downloading role data from the official script tool...[/green]", end='')
         roles_from_web = urlopen("https://script.bloodontheclocktower.com/data/roles.json").read().decode('utf-8')
         role_data = json.loads(roles_from_web)
+        # Filter the roles
+        role_data = [role for role in role_data if args.script_filter in role['version']]
         night_data = urlopen("https://script.bloodontheclocktower.com/data/nightsheet.json").read().decode('utf-8')
         night_json = json.loads(night_data)
         print("[bold green]Done![/]")
@@ -264,8 +266,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Download all roles from a url, with associated icon and description.')
     parser.add_argument('-o', '--output-dir', type=str, default='results',
                         help="Directory in which to write the json and icon files (Default: 'results')")
-    parser.add_argument('--icon-dir', type=str, default='img',
-                        help="Sub-directory of output-dir in which to write the icon files (Default: 'img')")
+    parser.add_argument('--script-filter', type=str, default='Experimental',
+                        help="Filter for scripts to pull (Default: 'Experimental')")
     args = parser.parse_args()
 
     # Run the script
