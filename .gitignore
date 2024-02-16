@@ -1,6 +1,8 @@
 ## Project Specific ##
 __version__.py
 results
+roles.json
+tokens
 
 ## MacOS ##
 # General

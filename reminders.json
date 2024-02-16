@@ -21,7 +21,7 @@
  "Baron": [],
  "Spy": [],
  "Imp": ["DEAD"],
- "Fisherman": [],
+ "Fisherman": ["NO ABILITY"],
  "Shugenja": [],
  "Bounty Hunter": ["KNOWN"],
  "Preacher": ["NO ABILITY", "NO ABILITY", "NO ABILITY"],
