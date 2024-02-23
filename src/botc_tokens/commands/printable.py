@@ -2,12 +2,28 @@ import argparse
 from pathlib import Path
 from rich.progress import Progress, TimeElapsedColumn, BarColumn, TextColumn, TimeRemainingColumn, SpinnerColumn, Live, Group
 import json
-from wand.image import Image
 from rich import print
+from ..helpers.printable import Printable
 
 
-def main(args):
+def _parse_args():
+    parser = argparse.ArgumentParser(
+        prog="botc_tokens printable",
+        description='Create printable sheets based on a script json file.'
+    )
+    parser.add_argument('script_json', type=str,
+                        help='the json file containing the script info.')
+    parser.add_argument('--token-dir', type=str, default='tokens',
+                        help="Name of the directory in which to find the token images. (Default: 'tokens')")
+    parser.add_argument('-o', '--output-dir', type=str, default='printables',
+                        help="Name of the directory in which to output the sheets. (Default: 'printables')")
+    args = parser.parse_args()
+    return args
+
+
+def run():
     """Create printable sheets based on a script json file."""
+    args = _parse_args()
     # Find all the token images
     token_files = Path(args.token_dir).rglob("*.png")
     role_images = []
@@ -68,53 +84,3 @@ def main(args):
         step_progress.update(step_task, description=f"Saving pages")
         role_page.save_page()
         reminder_page.save_page()
-
-
-class Printable:
-    """Create printable sheets based on a script json file."""
-    def __init__(self, output_dir, basename="page"):
-        # 8.5"x11" at 300dpi is 2550 x 3300px
-        # Subtracting 74px from each side to account for printer margins leaves 2402 x 3152px
-        self.page = Image(width=2402, height=3152, resolution=(300, 300))
-        self.current_x = 0
-        self.current_y = 0
-        self.next_row_should_be_inset = False
-        self.output_dir = Path(output_dir)
-        self.page_number = 1
-        self.basename = basename
-
-    def save_page(self):
-        """Save the current page and reset the state."""
-        # Don't save a blank sheet
-        if self.current_x == 0 and self.current_y == 0:
-            return
-        self.page.save(filename=self.output_dir / f"{self.basename}_{self.page_number}.pdf")
-        self.page.close()
-        self.page = Image(width=4952, height=6452, resolution=(600, 600))
-        self.current_x, self.current_y = 0, 0
-
-    def add_token(self, token_file):
-        """Add a token to the current page."""
-        with Image(filename=token_file) as token:
-            self.page.composite(token, left=int(self.current_x), top=int(self.current_y))
-            self.current_x += token.width * 1.6
-            # Check bounds
-            if self.current_x + token.width > self.page.width:
-                self.current_x = 0 + (0 if self.next_row_should_be_inset else token.width * 0.8)
-                self.next_row_should_be_inset = not self.next_row_should_be_inset  # Toggle the row inset
-                self.current_y += token.height // 2 + token.height * 0.2
-                if self.current_y + token.height > self.page.height:
-                    self.save_page()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Create printable sheets based on a script json file.')
-    parser.add_argument('script_json', type=str,
-                        help='the json file containing the script info.')
-    parser.add_argument('--token-dir', type=str, default='tokens',
-                        help="Name of the directory in which to find the token images. (Default: 'tokens')")
-    parser.add_argument('-o', '--output-dir', type=str, default='printables',
-                        help="Name of the directory in which to output the sheets. (Default: 'printables')")
-    args = parser.parse_args()
-    main(args)
-    print("--Done!--")

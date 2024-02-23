@@ -18,36 +18,25 @@ from rich.progress import (
 )
 from rich.live import Live
 from rich.console import Group
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
+from ..helpers.role import Role
 
 
-@dataclass
-class Role:
-    """A role in a script.
+def _parse_args():
+    parser = argparse.ArgumentParser(description='Download roles from the wiki, with associated icon and description.')
+    parser.add_argument('-o', '--output-dir', type=str, default='results',
+                        help="Directory in which to write the json and icon files (Default: 'results')")
+    parser.add_argument('--script-filter', type=str, default='Experimental',
+                        help="Filter for scripts to pull (Default: 'Experimental')")
+    args = parser.parse_args()
+    return args
 
-    Attributes:
-        name: The name of the role.
-        ability: The description of the role.
-        type: The type of the role (Townsfolk, Outsider, Minion, Demon, or Traveller).
-        first_night: Whether the role wakes for a night action on the first night.
-        other_nights: Whether the role wakes for a night action on nights other than the first.
-        reminders: The number of reminders tokens the role has.
-        icon: The filename of the icon.
-        home_script: The name of the script in which the role is found.
-    """
-    name: str
-    ability: str = None
-    type: str = None
-    icon: str = None
-    first_night: bool = False
-    other_nights: bool = False
-    reminders: list = None
-    affects_setup: bool = False
-    home_script: str = None
 
-    def __str__(self):
-        """Return a string representation of the role."""
-        return f"{self.name}: {self.ability}"
+def run():
+    # Run the script
+    args = _parse_args()
+    u = Updater()
+    u.run(args)
 
 
 class Updater:
@@ -56,7 +45,7 @@ class Updater:
         """Prep the reminders and wiki soup."""
         self.wiki_soups = {}
         self.reminders = []
-        with open("reminders.json", "r") as f:
+        with open("../data/known_reminders.json", "r") as f:
             self.reminders = json.load(f)
 
     def _get_wiki_soup(self, role_name):
@@ -260,17 +249,3 @@ class Updater:
                 overall_progress.update(role_task, advance=1)
 
             step_progress.stop_task(step_task)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Download all roles from a url, with associated icon and description.')
-    parser.add_argument('-o', '--output-dir', type=str, default='results',
-                        help="Directory in which to write the json and icon files (Default: 'results')")
-    parser.add_argument('--script-filter', type=str, default='Experimental',
-                        help="Filter for scripts to pull (Default: 'Experimental')")
-    args = parser.parse_args()
-
-    # Run the script
-    u = Updater()
-    u.run(args)
-    print("--Done--")

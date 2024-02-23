@@ -3,6 +3,7 @@ __version__.py
 results
 roles.json
 tokens
+printables
 
 ## MacOS ##
 # General
