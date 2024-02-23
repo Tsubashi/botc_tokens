@@ -30,28 +30,35 @@ def fit_ability_text(text, font_size, first_line_width, step):
     img = Image(width=1, height=1, resolution=(600, 600))
     with Drawing() as draw:
         # Assign font details
-        draw.font = "components/OpenSans-Regular.ttf"
-        draw.font_size = font_size
+        draw.font = "components/OpenSans-Light.ttf"
+        draw.font_size = font_size / 0.9  # We will manipulate the font size in the loop, so start slightly larger
         draw.fill_color = Color("#000000")
-        line_text = text
-        target_width = first_line_width
-        largest_line_width = 0
-        max_height = 0
-        lines = []
         # Determine how many lines we need and how long each line needs to be.
-        while len(text) > 0:
-            metrics = draw.get_font_metrics(img, line_text)
-            while metrics.text_width > target_width:
-                line_text = " ".join(line_text.split(" ")[:-1])
-                metrics = draw.get_font_metrics(img, line_text)
-            # Now that we have a line that fits, update all our tracking variables
-            largest_line_width = max(largest_line_width, metrics.text_width)
-            max_height = max_height + metrics.text_height
-            target_width = target_width + step
-            lines.append(line_text)
-            # Remove the line we just added from the text, and set up line_text for the next line
-            text = text[len(line_text):]
+        # Since we never want more than 4 lines, we'll add a loop checking if we have exceeded that, and then just
+        # start the line counter above that limit so that we run at least once.
+        original_text = text
+        lines = [1,2,3,4,5]
+        while len(lines) > 4:
+            text = original_text
             line_text = text
+            lines = []
+            target_width = first_line_width
+            largest_line_width = 0
+            max_height = 0
+            draw.font_size = draw.font_size * 0.9
+            while len(text) > 0:
+                metrics = draw.get_font_metrics(img, line_text)
+                while metrics.text_width > target_width:
+                    line_text = " ".join(line_text.split(" ")[:-1])
+                    metrics = draw.get_font_metrics(img, line_text)
+                # Now that we have a line that fits, update all our tracking variables
+                largest_line_width = max(largest_line_width, metrics.text_width)
+                max_height = max_height + metrics.text_height
+                target_width = target_width + step
+                lines.append(line_text)
+                # Remove the line we just added from the text, and set up line_text for the next line
+                text = text[len(line_text):]
+                line_text = text
         # Actually draw the text
         current_y = 0
         img.resize(width=int(largest_line_width), height=int(max_height*1.2))  # Add a little padding
@@ -101,7 +108,7 @@ def curved_text_to_image(text, token_type, token_diameter):
                 break
 
         # Resize the image
-        img.resize(width=width, height=height)
+        img.resize(width=width, height=int(height*1.2))
         # Draw the text
         draw.text(0, height, text)
         draw(img)
@@ -173,29 +180,21 @@ def main(args):
         overall_task = overall_progress.add_task("Creating Tokens...", total=len(roles))
         step_task = step_progress.add_task("Reading roles...")
         for role in roles:
-            step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
             # Make sure our target directory exists
             role_output_path = output_path / role['home_script'] / role['type']
             role_output_path.mkdir(parents=True, exist_ok=True)
 
+            # Skip if the token already exists
+            token_output_path = role_output_path / f"{role['name']}.png"
+            if token_output_path.exists():
+                continue
+
             # Composite the various pieces of the token.
+            step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
             token = token_bg.clone()
             icon = Image(filename=role['icon'])
             token_icon = icon.clone()
             token_icon.transform(resize=f"{token_bg.width*0.7}x{reminder_bg.height*0.7}^")
-            # Determine where to place the icon
-            icon_x = (token.width - token_icon.width) // 2
-            icon_y = (token.height - token_icon.height + int(token.height*0.1)) // 2
-            token.composite(token_icon, left=icon_x, top=icon_y)
-            token_icon.close()
-
-            # Check for modifiers
-            if role.get('first_night'):
-                token.composite(left_leaf, left=0, top=0)
-            if role.get('other_nights'):
-                token.composite(right_leaf, left=0, top=0)
-            if role.get('affects_setup'):
-                token.composite(setup_flower, left=0, top=0)
 
             # Check if we have reminders. If so, create them.
             reminder_icon = icon.clone()
@@ -206,7 +205,13 @@ def main(args):
 
             # Create the reminder tokens
             for reminder_text in role['reminders']:
-                reminder_name = f"{role['name']}-Reminder-{reminder_text}"
+                reminder_name = f"{role['name']}-Reminder-{reminder_text.replace(':', '-')}"
+                reminder_output_path = role_output_path / f"{reminder_name}.png"
+                duplicate_counter = 1
+                while reminder_output_path.exists():
+                    duplicate_counter += 1
+                    reminder_output_path = role_output_path / f"{reminder_name}-{duplicate_counter}.png"
+
                 step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
                 reminder = reminder_bg.clone()
                 reminder_icon_x = (reminder.width - reminder_icon.width) // 2
@@ -219,39 +224,53 @@ def main(args):
                 reminder.composite(text_img, left=text_x, top=text_y)
                 text_img.close()
 
-                # Resize to 307x307, since that will yield a 26mm token when printed at 300dpi
-                reminder.resize(width=307, height=307)
+                # Resize to 319x319 since that will yield a 27mm token when printed at 300dpi
+                # This allows for a 2mm bleed
+                reminder.resize(width=319, height=319)
 
                 # Save the reminder token
-                reminder_output_path = role_output_path / f"{reminder_name}.png"
                 reminder.save(filename=reminder_output_path)
                 reminder.close()
             reminder_icon.close()
+
+            # Determine where to place the icon
+            icon_x = (token.width - token_icon.width) // 2
+            icon_y = (token.height - token_icon.height + int(token.height * 0.22)) // 2
+            token.composite(token_icon, left=icon_x, top=icon_y)
+            token_icon.close()
+
+            # Check for modifiers
+            if role.get('first_night'):
+                token.composite(left_leaf, left=0, top=0)
+            if role.get('other_nights'):
+                token.composite(right_leaf, left=0, top=0)
+            if role.get('affects_setup'):
+                token.composite(setup_flower, left=0, top=0)
 
             # Add ability text to the token
             step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
             ability_text_img = fit_ability_text(
                 text=role['ability'],
-                font_size=int(token.height*0.04),
-                first_line_width=int(token.width*.55),
-                step=int(token.width*.08)
+                font_size=int(token.height*0.055),
+                first_line_width=int(token.width*.52),
+                step=int(token.width*.1)
             )
             ability_text_x = (token.width - ability_text_img.width) // 2
-            token.composite(ability_text_img, left=ability_text_x, top=int(token.height*0.15))
+            token.composite(ability_text_img, left=ability_text_x, top=int(token.height*0.09))
             ability_text_img.close()
 
             # Add the role name to the token
             text_img = curved_text_to_image(role['name'], "role", token.width)
             text_x = (token.width - text_img.width) // 2
-            text_y = (token.height - text_img.height - int(token.height*0.15))
+            text_y = (token.height - text_img.height - int(token.height*0.08))
             token.composite(text_img, left=text_x, top=text_y)
             text_img.close()
 
-            # Resize to 543x543, since that will yield a 46mm token when printed at 300dpi
-            token.resize(width=543, height=543)
+            # Resize to 555x555, since that will yield a 47mm token when printed at 300dpi
+            # This allows for a 2mm bleed
+            token.resize(width=555, height=555)
 
             # Save the token
-            token_output_path = role_output_path / f"{role['name']}.png"
             token.save(filename=token_output_path)
             token.close()
 
