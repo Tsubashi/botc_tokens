@@ -30,6 +30,8 @@ def _parse_args():
                         help="Directory in which to write the json and icon files (Default: 'inputs')")
     parser.add_argument('--script-filter', type=str, default='Experimental',
                         help="Filter for scripts to pull (Default: 'Experimental')")
+    parser.add_argument('--reminders', type=str,
+                        help="JSON file to override reminder guesses from the wiki.")
     args = parser.parse_args(sys.argv[2:])
     return args
 
@@ -49,6 +51,7 @@ class Updater:
         self.reminders = []
         with open(data_dir / "known_reminders.json", "r") as f:
             self.reminders = json.load(f)
+        self.reminder_overrides = []
 
     def _get_wiki_soup(self, role_name):
         """Take a role name and return a BeautifulSoup object for the role's wiki page."""
@@ -85,7 +88,11 @@ class Updater:
     def _get_reminders(self, role_name):
         """Take a role name and grab the reminders."""
 
-        # First check if we have the role in the local reminders file
+        # First check if we have the role in the override reminders file
+        if role_name in self.reminder_overrides:
+            return self.reminder_overrides[role_name]
+
+        # Next check if we have the role in the local reminders file
         if role_name in self.reminders:
             return self.reminders[role_name]
 
@@ -145,15 +152,7 @@ class Updater:
             args: The command line arguments.
         """
 
-        # Download the official lists from the script tool
-        print("[green]Downloading role data from the official script tool...[/green]", end='')
-        roles_from_web = urlopen("https://script.bloodontheclocktower.com/data/roles.json").read().decode('utf-8')
-        role_data = json.loads(roles_from_web)
-        # Filter the roles
-        role_data = [role for role in role_data if args.script_filter in role['version']]
-        night_data = urlopen("https://script.bloodontheclocktower.com/data/nightsheet.json").read().decode('utf-8')
-        night_json = json.loads(night_data)
-        print("[bold green]Done![/]")
+
 
         # Overall progress bar
         overall_progress = Progress(
@@ -174,10 +173,25 @@ class Updater:
         with Live(progress_group):
             output_path = Path(args.output_dir)
             # create overall progress bar
-            role_task = overall_progress.add_task("Parsing role data...", total=len(role_data))
-            step_task = step_progress.add_task("Finding roles")
+            role_task = overall_progress.add_task("Updating role data...", total=None)
+
+            # Download the official lists from the script tool
+            step_task = step_progress.add_task("Downloading role data from the official script tool")
+            roles_from_web = urlopen("https://script.bloodontheclocktower.com/data/roles.json").read().decode('utf-8')
+            role_data = json.loads(roles_from_web)
+            # Filter the roles
+            role_data = [role for role in role_data if args.script_filter in role['version']]
+            night_data = urlopen("https://script.bloodontheclocktower.com/data/nightsheet.json").read().decode('utf-8')
+            night_json = json.loads(night_data)
+
+            # Open the reminder overrides file, if it exists
+            step_task.update(description="Reading reminder overrides file")
+            if args.reminders:
+                with open(args.reminders, "r") as f:
+                    self.reminder_overrides = json.load(f)
 
             # Step through each role and grab the relevant data before adding it to the list.
+            role_task.update(total=len(role_data))
             for role in role_data:
                 name = role['name']
                 step_progress.update(step_task, description=f"Found role: {name}")
@@ -193,8 +207,9 @@ class Updater:
                             j = json.load(f)
                         found_role = Role(**j)
                     except json.decoder.JSONDecodeError:
-                        print(f"[red]Error:[/] Could not read {role_file}. Regenerating.")
-                        role_file.unlink()
+                        print(f"[red]Error:[/] Could not read {role_file}. Skipping.")
+                        overall_progress.update(role_task, advance=1)
+                        continue
 
                 # Get info from the wiki
                 if not found_role.ability:
