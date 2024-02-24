@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "botc_tokens"
+description = "A collection of command line utilities for creating, updating, and grouping tokens for Blood on the Clocktower."
+readme = "README.md"
+requires-python = ">=3.8"
+dynamic = ["version"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+]
+dependencies = [
+    "wand",
+    "rich ~= 12.6.0"
+]
+
+[project.optional-dependencies]
+test = ["tox", "pytest-cov"]
+
+[project.scripts]
+botc_tokens = "botc_tokens:__main__.main"
+
+[tool.setuptools_scm]
+write_to = "src/botc_tokens/__version__.py"
+
+[tool.setuptools.dynamic]
+version = {attr = "botc_tokens.__version__.__version__"}
+
+[tool.pytest.ini_options]
+# addopts = "--cov --cov-branch --cov-report html --cov-report term-missing --cov-fail-under 100"
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.yapf]
+column_limit = 120
+
+[tool.isort]
+py_version = "auto"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+isolated_build = True
+envlist = flake8,clean,py310,report
+
+[gh-actions]
+python =
+    3.10: flake8,py310
+
+[testenv]
+commands = pytest --cov {envsitepackagesdir}/src/botc_tokens --cov-append --cov-report=term-missing
+deps =
+    pytest
+    pytest-cov
+
+[testenv:flake8]
+commands = flake8 src/ tests/
+skip_install = true
+deps =
+    flake8
+    flake8-bugbear
+    flake8-docstrings
+    flake8-import-order
+    flake8-colors
+    pep8-naming
+
+[testenv:clean]
+deps = coverage[toml]
+skip_install = true
+commands = coverage erase
+
+[testenv:report]
+deps = coverage[toml]
+skip_install = true
+commands =
+    coverage report
+    coverage html -d coverage_html
+
+"""

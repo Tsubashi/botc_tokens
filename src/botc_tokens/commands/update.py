@@ -6,6 +6,7 @@ import urllib.parse
 import string
 import json
 import argparse
+import sys
 from bs4 import BeautifulSoup
 from pathlib import Path
 from rich import print
@@ -18,36 +19,28 @@ from rich.progress import (
 )
 from rich.live import Live
 from rich.console import Group
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
+from ..helpers.role import Role
+from .. import data_dir
 
 
-@dataclass
-class Role:
-    """A role in a script.
+def _parse_args():
+    parser = argparse.ArgumentParser(description='Download roles from the wiki, with associated icon and description.')
+    parser.add_argument('-o', '--output-dir', type=str, default='inputs',
+                        help="Directory in which to write the json and icon files (Default: 'inputs')")
+    parser.add_argument('--script-filter', type=str, default='Experimental',
+                        help="Filter for scripts to pull (Default: 'Experimental')")
+    parser.add_argument('--reminders', type=str,
+                        help="JSON file to override reminder guesses from the wiki.")
+    args = parser.parse_args(sys.argv[2:])
+    return args
 
-    Attributes:
-        name: The name of the role.
-        ability: The description of the role.
-        type: The type of the role (Townsfolk, Outsider, Minion, Demon, or Traveller).
-        first_night: Whether the role wakes for a night action on the first night.
-        other_nights: Whether the role wakes for a night action on nights other than the first.
-        reminders: The number of reminders tokens the role has.
-        icon: The filename of the icon.
-        home_script: The name of the script in which the role is found.
-    """
-    name: str
-    ability: str = None
-    type: str = None
-    icon: str = None
-    first_night: bool = False
-    other_nights: bool = False
-    reminders: list = None
-    affects_setup: bool = False
-    home_script: str = None
 
-    def __str__(self):
-        """Return a string representation of the role."""
-        return f"{self.name}: {self.ability}"
+def run():
+    # Run the script
+    args = _parse_args()
+    u = Updater()
+    u.run(args)
 
 
 class Updater:
@@ -56,8 +49,9 @@ class Updater:
         """Prep the reminders and wiki soup."""
         self.wiki_soups = {}
         self.reminders = []
-        with open("reminders.json", "r") as f:
+        with open(data_dir / "known_reminders.json", "r") as f:
             self.reminders = json.load(f)
+        self.reminder_overrides = []
 
     def _get_wiki_soup(self, role_name):
         """Take a role name and return a BeautifulSoup object for the role's wiki page."""
@@ -94,7 +88,11 @@ class Updater:
     def _get_reminders(self, role_name):
         """Take a role name and grab the reminders."""
 
-        # First check if we have the role in the local reminders file
+        # First check if we have the role in the override reminders file
+        if role_name in self.reminder_overrides:
+            return self.reminder_overrides[role_name]
+
+        # Next check if we have the role in the local reminders file
         if role_name in self.reminders:
             return self.reminders[role_name]
 
@@ -131,7 +129,8 @@ class Updater:
         icon_url = icon_tag["src"]
         return icon_url
 
-    def _format_filename(self, in_string):
+    @staticmethod
+    def _format_filename(in_string):
         """Take a string and return a valid filename constructed from the string.
 
         Args:
@@ -153,15 +152,7 @@ class Updater:
             args: The command line arguments.
         """
 
-        # Download the official lists from the script tool
-        print("[green]Downloading role data from the official script tool...[/green]", end='')
-        roles_from_web = urlopen("https://script.bloodontheclocktower.com/data/roles.json").read().decode('utf-8')
-        role_data = json.loads(roles_from_web)
-        # Filter the roles
-        role_data = [role for role in role_data if args.script_filter in role['version']]
-        night_data = urlopen("https://script.bloodontheclocktower.com/data/nightsheet.json").read().decode('utf-8')
-        night_json = json.loads(night_data)
-        print("[bold green]Done![/]")
+
 
         # Overall progress bar
         overall_progress = Progress(
@@ -182,10 +173,25 @@ class Updater:
         with Live(progress_group):
             output_path = Path(args.output_dir)
             # create overall progress bar
-            role_task = overall_progress.add_task("Parsing role data...", total=len(role_data))
-            step_task = step_progress.add_task("Finding roles")
+            role_task = overall_progress.add_task("Updating role data...", total=None)
+
+            # Download the official lists from the script tool
+            step_task = step_progress.add_task("Downloading role data from the official script tool")
+            roles_from_web = urlopen("https://script.bloodontheclocktower.com/data/roles.json").read().decode('utf-8')
+            role_data = json.loads(roles_from_web)
+            # Filter the roles
+            role_data = [role for role in role_data if args.script_filter in role['version']]
+            night_data = urlopen("https://script.bloodontheclocktower.com/data/nightsheet.json").read().decode('utf-8')
+            night_json = json.loads(night_data)
+
+            # Open the reminder overrides file, if it exists
+            step_task.update(description="Reading reminder overrides file")
+            if args.reminders:
+                with open(args.reminders, "r") as f:
+                    self.reminder_overrides = json.load(f)
 
             # Step through each role and grab the relevant data before adding it to the list.
+            role_task.update(total=len(role_data))
             for role in role_data:
                 name = role['name']
                 step_progress.update(step_task, description=f"Found role: {name}")
@@ -201,8 +207,9 @@ class Updater:
                             j = json.load(f)
                         found_role = Role(**j)
                     except json.decoder.JSONDecodeError:
-                        print(f"[red]Error:[/] Could not read {role_file}. Regenerating.")
-                        role_file.unlink()
+                        print(f"[red]Error:[/] Could not read {role_file}. Skipping.")
+                        overall_progress.update(role_task, advance=1)
+                        continue
 
                 # Get info from the wiki
                 if not found_role.ability:
@@ -260,17 +267,3 @@ class Updater:
                 overall_progress.update(role_task, advance=1)
 
             step_progress.stop_task(step_task)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Download all roles from a url, with associated icon and description.')
-    parser.add_argument('-o', '--output-dir', type=str, default='results',
-                        help="Directory in which to write the json and icon files (Default: 'results')")
-    parser.add_argument('--script-filter', type=str, default='Experimental',
-                        help="Filter for scripts to pull (Default: 'Experimental')")
-    args = parser.parse_args()
-
-    # Run the script
-    u = Updater()
-    u.run(args)
-    print("--Done--")
