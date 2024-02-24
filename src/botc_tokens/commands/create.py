@@ -22,7 +22,7 @@ def _parse_args():
     parser = argparse.ArgumentParser(
         prog="botc_tokens create",
         description='Create token images to match json files in a directory tree.')
-    parser.add_argument('search_dir', type=str, default="results", nargs="?",
+    parser.add_argument('search_dir', type=str, default="inputs", nargs="?",
                         help='The top level directory in which to begin the search.')
     parser.add_argument('output_dir', type=str, default='tokens', nargs="?",
                         help="Name of the directory in which to output the tokens. (Default: 'tokens')")

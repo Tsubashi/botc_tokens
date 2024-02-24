@@ -26,8 +26,8 @@ from .. import data_dir
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='Download roles from the wiki, with associated icon and description.')
-    parser.add_argument('-o', '--output-dir', type=str, default='results',
-                        help="Directory in which to write the json and icon files (Default: 'results')")
+    parser.add_argument('-o', '--output-dir', type=str, default='inputs',
+                        help="Directory in which to write the json and icon files (Default: 'inputs')")
     parser.add_argument('--script-filter', type=str, default='Experimental',
                         help="Filter for scripts to pull (Default: 'Experimental')")
     args = parser.parse_args(sys.argv[2:])

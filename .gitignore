@@ -1,7 +1,6 @@
 ## Project Specific ##
 __version__.py
-results
-roles.json
+inputs/
 tokens
 printables
 
