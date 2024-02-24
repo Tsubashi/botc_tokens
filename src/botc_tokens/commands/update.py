@@ -6,6 +6,7 @@ import urllib.parse
 import string
 import json
 import argparse
+import sys
 from bs4 import BeautifulSoup
 from pathlib import Path
 from rich import print
@@ -20,6 +21,7 @@ from rich.live import Live
 from rich.console import Group
 from dataclasses import asdict
 from ..helpers.role import Role
+from .. import data_dir
 
 
 def _parse_args():
@@ -28,7 +30,7 @@ def _parse_args():
                         help="Directory in which to write the json and icon files (Default: 'results')")
     parser.add_argument('--script-filter', type=str, default='Experimental',
                         help="Filter for scripts to pull (Default: 'Experimental')")
-    args = parser.parse_args()
+    args = parser.parse_args(sys.argv[2:])
     return args
 
 
@@ -45,7 +47,7 @@ class Updater:
         """Prep the reminders and wiki soup."""
         self.wiki_soups = {}
         self.reminders = []
-        with open("../data/known_reminders.json", "r") as f:
+        with open(data_dir / "known_reminders.json", "r") as f:
             self.reminders = json.load(f)
 
     def _get_wiki_soup(self, role_name):
@@ -120,7 +122,8 @@ class Updater:
         icon_url = icon_tag["src"]
         return icon_url
 
-    def _format_filename(self, in_string):
+    @staticmethod
+    def _format_filename(in_string):
         """Take a string and return a valid filename constructed from the string.
 
         Args:

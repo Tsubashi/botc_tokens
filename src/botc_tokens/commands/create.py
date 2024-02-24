@@ -1,5 +1,5 @@
 import json
-import math
+import sys
 from pathlib import Path
 import argparse
 from rich import print
@@ -14,6 +14,8 @@ from rich.progress import (
 from rich.live import Live
 from rich.console import Group
 from wand.image import Image
+from ..helpers.text_tools import curved_text_to_image, fit_ability_text
+from .. import component_path
 
 
 def _parse_args():
@@ -24,7 +26,7 @@ def _parse_args():
                         help='The top level directory in which to begin the search.')
     parser.add_argument('output_dir', type=str, default='tokens', nargs="?",
                         help="Name of the directory in which to output the tokens. (Default: 'tokens')")
-    args = parser.parse_args()
+    args = parser.parse_args(sys.argv[2:])
     return args
 
 
@@ -45,20 +47,20 @@ def run():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load the component images
-    token_bg = Image(filename="../../../components/TokenBG.png")
-    reminder_bg = Image(filename="../../../components/ReminderBG.png")
+    token_bg = Image(filename=component_path / "TokenBG.png")
+    reminder_bg = Image(filename=component_path / "ReminderBG.png")
     leaves = [
-        Image(filename="../../../components/Leaf1.png"),
-        Image(filename="../../../components/Leaf2.png"),
-        Image(filename="../../../components/Leaf3.png"),
-        Image(filename="../../../components/Leaf4.png"),
-        Image(filename="../../../components/Leaf5.png"),
-        Image(filename="../../../components/Leaf6.png"),
-        Image(filename="../../../components/Leaf7.png"),
+        Image(filename=component_path / "Leaf1.png"),
+        Image(filename=component_path / "Leaf2.png"),
+        Image(filename=component_path / "Leaf3.png"),
+        Image(filename=component_path / "Leaf4.png"),
+        Image(filename=component_path / "Leaf5.png"),
+        Image(filename=component_path / "Leaf6.png"),
+        Image(filename=component_path / "Leaf7.png"),
     ]
-    left_leaf = Image(filename="../../../components/LeafLeft.png")
-    right_leaf = Image(filename="../../../components/LeafRight.png")
-    setup_flower = Image(filename="../../../components/SetupFlower.png")
+    left_leaf = Image(filename=component_path / "LeafLeft.png")
+    right_leaf = Image(filename=component_path / "LeafRight.png")
+    setup_flower = Image(filename=component_path / "SetupFlower.png")
 
     # Create the tokens
     # Overall progress bar
@@ -187,7 +189,6 @@ def run():
     right_leaf.close()
     setup_flower.close()
 
-    print("[bold green]Done![/]")
 
 
 

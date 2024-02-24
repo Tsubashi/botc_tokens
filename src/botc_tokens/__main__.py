@@ -17,8 +17,9 @@ def _print_version():
 # Set up the dictionary of commands. The values are tuples, first the function to run, second the description.
 allowed_commands = {
     "printable": (printable.run, "Create printable sheets of roles and reminder from a json script file."),
-    "tokens": (create.run, "Create token images to match json files in a directory tree."),
+    "create": (create.run, "Create token images to match json files in a directory tree."),
     "update": (update.run, "Download roles from the wiki, with associated icon and description."),
+    "version": (_print_version, "Print version and exit."),
 }
 
 
@@ -30,13 +31,13 @@ def main():
              )
     for name, (_, description) in allowed_commands.items():
         usage += f"{name:18}: {description}\n"
-    usage += ("\nFor more help with a command, use m4b-util <command> --help\n"
+    usage += ("\nFor more help with a command, use botc_tokens <command> --help\n"
               " \n"
               )
 
     # Set up argparse
     parser = argparse.ArgumentParser(
-        prog="m4b-util",
+        prog="botc_tokens",
         usage=usage
     )
     parser.add_argument('command', help='Subcommand to run')
@@ -55,7 +56,7 @@ def main():
     # Invoke the subcommand
     retcode = allowed_commands[args.command][0]()
 
-    print("[green]Done![/]")
+    print("[bold green]Done![/]")
     exit(retcode)
 
 

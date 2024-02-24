@@ -1,7 +1,17 @@
 import argparse
 from pathlib import Path
-from rich.progress import Progress, TimeElapsedColumn, BarColumn, TextColumn, TimeRemainingColumn, SpinnerColumn, Live, Group
+from rich.progress import (
+    Progress,
+    TimeElapsedColumn,
+    BarColumn,
+    TextColumn,
+    TimeRemainingColumn,
+    SpinnerColumn,
+    Live,
+    Group
+)
 import json
+import sys
 from rich import print
 from ..helpers.printable import Printable
 
@@ -17,7 +27,7 @@ def _parse_args():
                         help="Name of the directory in which to find the token images. (Default: 'tokens')")
     parser.add_argument('-o', '--output-dir', type=str, default='printables',
                         help="Name of the directory in which to output the sheets. (Default: 'printables')")
-    args = parser.parse_args()
+    args = parser.parse_args(sys.argv[2:])
     return args
 
 
@@ -61,7 +71,7 @@ def run():
     progress_group = Group(overall_progress, step_progress)
 
     with Live(progress_group):
-        overall_progress.add_task("Creating Sheets", total=2)
+        overall_progress.add_task("Creating Sheets", total=None)
         step_task = step_progress.add_task("Adding roles")
         role_page = Printable(output_dir, "roles")
         reminder_page = Printable(output_dir, "reminders")
@@ -71,8 +81,8 @@ def run():
             role_name = role.lower().replace("_", " ").strip()
             step_progress.update(step_task, description=f"Adding {role_name.title()}")
             # See if we have tokens for this role
-            role_file = next((t for t in role_images if role_name in t.name.lower().replace("'","")), None)
-            reminder_files = (t for t in reminder_images if t.name.lower().replace("'","").startswith(role_name))
+            role_file = next((t for t in role_images if role_name in t.name.lower().replace("'", "")), None)
+            reminder_files = (t for t in reminder_images if t.name.lower().replace("'", "").startswith(role_name))
             if not role_file:
                 print(f"[yellow]No token found for {role_name}[/]")
                 continue

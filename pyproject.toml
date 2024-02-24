@@ -24,7 +24,7 @@ dependencies = [
 test = ["tox", "pytest-cov"]
 
 [project.scripts]
-m4b-util = "botc_tokens:__main__.main"
+botc_tokens = "botc_tokens:__main__.main"
 
 [tool.setuptools_scm]
 write_to = "src/botc_tokens/__version__.py"
