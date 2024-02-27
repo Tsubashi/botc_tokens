@@ -17,6 +17,7 @@ classifiers = [
 ]
 dependencies = [
     "wand",
+    "beautifulsoup4",
     "rich ~= 12.6.0"
 ]
 
