@@ -1,8 +1,11 @@
 ## Project Specific ##
 __version__.py
-inputs/
+inputs
+!example/inputs/
 tokens
+!example/tokens/
 printables
+!example/printables/
 
 ## MacOS ##
 # General
@@ -111,7 +114,6 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
-!src/m4b_util/cover
 !tests/cover
 
 # Translations
