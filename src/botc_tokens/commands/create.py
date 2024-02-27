@@ -15,7 +15,7 @@ from rich.live import Live
 from rich.console import Group
 from wand.image import Image
 from ..helpers.text_tools import curved_text_to_image, fit_ability_text
-from .. import component_path
+from .. import component_path as default_component_path
 
 
 def _parse_args():
@@ -26,6 +26,8 @@ def _parse_args():
                         help='The top level directory in which to begin the search.')
     parser.add_argument('output_dir', type=str, default='tokens', nargs="?",
                         help="Name of the directory in which to output the tokens. (Default: 'tokens')")
+    parser.add_argument('--component-dir', type=str, nargs="?", default=default_component_path,
+                        help="The directory in which to find the token components files. (leaves, backgrounds, etc.)")
     args = parser.parse_args(sys.argv[2:])
     return args
 
@@ -47,6 +49,7 @@ def run():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load the component images
+    component_path = Path(args.component_dir)
     token_bg = Image(filename=component_path / "TokenBG.png")
     reminder_bg = Image(filename=component_path / "ReminderBG.png")
     leaves = [

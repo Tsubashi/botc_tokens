@@ -35,9 +35,11 @@ botc_tokens update --output-dir /path/to/inputs --reminders /path/to/reminders.j
 
 ### Creating tokens
 Once you have your role info, whether from the `update` command or from your own creation, you can use the `create`
-command to generate the tokens. This will create a folder with the role name and a subfolder for each token type.
+command to generate the tokens. This will create a folder with the role name and a subfolder for each token type. If you
+would like to customize the appearance of the tokens, you can use the `--component-dir` option to specify where to
+find your custom components. Check the `example` folder for an example of the expected structure.
 ```bash
-botc_tokens create /path/to/inputs /path/to/tokens
+botc_tokens create /path/to/inputs /path/to/tokens --component-dir /path/to/components
 ```
 
 ### Grouping tokens
