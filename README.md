@@ -44,7 +44,7 @@ botc_tokens create /path/to/inputs /path/to/tokens --component-dir /path/to/comp
 
 ### Grouping tokens
 Once you have created your token images, you can use the `group` command to organize the tokens into a single 
-printable sheet. This command requires a JSON file with the role info, which can be obtained from the
+printable sheet. This command requires a JSON file with desired role grouping, which can be created using the
 [official script tool](https://script.bloodontheclocktower.com/).
 ```bash
 botc_tokens group /path/to/script.json --token-dir /path/to/tokens --output-dir /path/to/printables
