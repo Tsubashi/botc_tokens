@@ -24,7 +24,7 @@ json file from the [official script tool](https://script.bloodontheclocktower.co
 
 ### Updating from the web
 If you want to create experimental tokens for your in-person games, you can use the `update` command to download the
-current list from the [official wiki] (https://wiki.bloodontheclocktower.com/). This is an incremental update, so it 
+current list from the [official wiki](https://wiki.bloodontheclocktower.com/). This is an incremental update, so it 
 will only download assets that are not already present in the local folder. We highly recommend double-checking the
 resulting entries, especially the reminder token section. While the utility does its best to guess, it isn't perfect.
 If you already know the reminder tokens, you can create a JSON file for the utility to use. See the example folder for
