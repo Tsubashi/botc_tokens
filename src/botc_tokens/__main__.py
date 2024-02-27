@@ -5,7 +5,7 @@ import sys
 from rich import print
 
 from .__version__ import version
-from .commands import printable, create, update
+from .commands import group, create, update
 
 
 def _print_version():
@@ -16,7 +16,7 @@ def _print_version():
 
 # Set up the dictionary of commands. The values are tuples, first the function to run, second the description.
 allowed_commands = {
-    "printable": (printable.run, "Create printable sheets of roles and reminder from a json script file."),
+    "group": (group.run, "Create printable sheets of roles and reminder from a json script file."),
     "create": (create.run, "Create token images to match json files in a directory tree."),
     "update": (update.run, "Download roles from the wiki, with associated icon and description."),
     "version": (_print_version, "Print version and exit."),

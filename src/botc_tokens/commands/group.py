@@ -18,7 +18,7 @@ from ..helpers.printable import Printable
 
 def _parse_args():
     parser = argparse.ArgumentParser(
-        prog="botc_tokens printable",
+        prog="botc_tokens group",
         description='Create printable sheets based on a script json file.'
     )
     parser.add_argument('script_json', type=str,
