@@ -15,6 +15,9 @@ def fit_ability_text(text, font_size, first_line_width, step):
         step (int): The amount to increase the line width by each time.
     """
     img = Image(width=1, height=1, resolution=(600, 600))
+    # Make sure we have text to draw. Otherwise, just return an empty image.
+    if text == "":
+        return img
     with Drawing() as draw:
         # Assign font details
         draw.font = str(component_path / "OpenSans-Light.ttf")
@@ -78,6 +81,9 @@ def curved_text_to_image(text, token_type, token_diameter):
         text = text.upper()
 
     img = Image(width=1, height=1, resolution=(600, 600))
+    # Make sure we have text to draw. Otherwise, just return an empty image.
+    if text == "":
+        return img
     with Drawing() as draw:
         # Assign font details
         draw.font = font_filepath
