@@ -4,7 +4,7 @@ A simple fan-made utility to help create custom tokens for the game Blood on the
 [img]
 
 ## Installation
-To use these scripts, you will need to have Python 3 installed on your computer. You can download it from the [official website](https://www.python.org/downloads/).
+To use this tool, you will need to have Python 3 installed on your computer. You can download it from the [official website](https://www.python.org/downloads/).
 
 Once you have Python installed, you can install these scripts using `pip`:
 ```bash
@@ -14,6 +14,11 @@ or manually by cloning this repository and running the following command in the 
 ```bash
 pip install .
 ```
+
+We use [Wand](https://docs.wand-py.org/en/0.6.13/) to handle image manipulation, which requires the 
+[ImageMagick](https://imagemagick.org/index.php) library to be installed on your system. Check the 
+[wand install guide](https://docs.wand-py.org/en/0.6.13/guide/install.html) for details on how to get
+that set up.
 
 ## Usage
 The main script is run through its entrypoint `botc_tokens`. You can use the `--help` flag to see the available 
