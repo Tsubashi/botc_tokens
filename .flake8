@@ -11,7 +11,8 @@ exclude =
     *.pyc,
     *.egg-info,
     .cache,
-    .eggs
+    .eggs,
+    __version__.py
 max-complexity = 10
 import-order-style = appnexus
 docstring-convention = google
