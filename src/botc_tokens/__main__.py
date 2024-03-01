@@ -5,7 +5,7 @@ import sys
 from rich import print
 
 from .__version__ import version
-from .commands import group, create, update
+from .commands import create, group, update
 
 
 def _print_version():

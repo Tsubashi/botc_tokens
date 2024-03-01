@@ -1,0 +1,18 @@
+[flake8]
+select = B,C,D,E,F,I,N,W,B902,B950
+exclude =
+    .tox,
+    .git,
+    __pycache__,
+    docs/source/conf.py,
+    build,
+    dist,
+    tests/fixtures/*,
+    *.pyc,
+    *.egg-info,
+    .cache,
+    .eggs
+max-complexity = 10
+import-order-style = appnexus
+docstring-convention = google
+max-line-length = 120

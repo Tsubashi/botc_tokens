@@ -1,19 +1,14 @@
+"""Create printable sheets based on a script json file."""
 import argparse
-from pathlib import Path
-from rich.progress import (
-    Progress,
-    TimeElapsedColumn,
-    BarColumn,
-    TextColumn,
-    TimeRemainingColumn,
-    SpinnerColumn,
-    Live,
-    Group
-)
 import json
+from pathlib import Path
 import sys
+
 from rich import print
+from rich.live import Live
+
 from ..helpers.printable import Printable
+from ..helpers.progress_group import setup_progress_group
 
 
 def _parse_args():
@@ -55,20 +50,7 @@ def run():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Overall progress bar
-    overall_progress = Progress(
-        TimeElapsedColumn(), BarColumn(), TextColumn("{task.description}"), TimeRemainingColumn()
-    )
-
-    # Progress bars for single steps (will be hidden when step is done)
-    step_progress = Progress(
-        TextColumn("  |-"),
-        TextColumn("[bold purple]{task.description}"),
-        SpinnerColumn("simpleDots"),
-    )
-
-    # Group the progress bars
-    progress_group = Group(overall_progress, step_progress)
+    progress_group, overall_progress, step_progress = setup_progress_group()
 
     with Live(progress_group):
         overall_progress.add_task("Creating Sheets", total=None)
@@ -91,6 +73,6 @@ def run():
                 reminder_page.add_token(reminder)
 
         # Save the last pages
-        step_progress.update(step_task, description=f"Saving pages")
+        step_progress.update(step_task, description="Saving pages")
         role_page.save_page()
         reminder_page.save_page()

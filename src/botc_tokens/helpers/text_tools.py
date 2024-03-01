@@ -1,7 +1,11 @@
-from wand.image import Image
-from wand.drawing import Drawing
-from wand.color import Color
+"""This module contains functions for manipulating text and converting it to images."""
 import math
+import string
+
+from wand.color import Color
+from wand.drawing import Drawing
+from wand.image import Image
+
 from .. import component_path
 
 
@@ -27,7 +31,7 @@ def fit_ability_text(text, font_size, first_line_width, step):
         # Since we never want more than 4 lines, we'll add a loop checking if we have exceeded that, and then just
         # start the line counter above that limit so that we run at least once.
         original_text = text
-        lines = [1,2,3,4,5]
+        lines = [1, 2, 3, 4, 5]
         while len(lines) > 4:
             text = original_text
             line_text = text
@@ -51,7 +55,7 @@ def fit_ability_text(text, font_size, first_line_width, step):
                 line_text = text
         # Actually draw the text
         current_y = 0
-        img.resize(width=int(largest_line_width), height=int(max_height*1.2))  # Add a little padding
+        img.resize(width=int(largest_line_width), height=int(max_height * 1.2))  # Add a little padding
         for line_text in lines:
             metrics = draw.get_font_metrics(img, line_text)
             current_x = int(((largest_line_width - metrics.text_width) / 2))
@@ -64,12 +68,13 @@ def fit_ability_text(text, font_size, first_line_width, step):
 
 def curved_text_to_image(text, token_type, token_diameter):
     """Change a text string into an image with curved text.
+
     Args:
         text (str): The text to be displayed.
         token_type (str): The type of text to be displayed. Either "reminder" or "role".
         token_diameter (int): The width of the token. This is used to determine the amount of curvature.
     """
-    token_diameter = int(token_diameter-(token_diameter*0.1))  # Reduce the diameter by 10% to give a little padding
+    token_diameter = int(token_diameter - (token_diameter * 0.1))  # Reduce the diameter by 10% to give a little padding
     if token_type == "reminder":
         font_size = token_diameter * 0.15
         font_filepath = str(component_path / "OpenSans-Regular.ttf")
@@ -95,13 +100,13 @@ def curved_text_to_image(text, token_type, token_diameter):
         while True:
             metrics = draw.get_font_metrics(img, text)
             height, width = int(metrics.text_height), int(metrics.text_width)
-            if width > 2 * token_diameter*0.8:
+            if width > 2 * token_diameter * 0.8:
                 draw.font_size = draw.font_size * 0.9
             else:
                 break
 
         # Resize the image
-        img.resize(width=width, height=int(height*1.2))
+        img.resize(width=width, height=int(height * 1.2))
         # Draw the text
         draw.text(0, height, text)
         draw(img)
@@ -119,3 +124,20 @@ def curved_text_to_image(text, token_type, token_diameter):
         img.rotate(180)
         img.distort('arc', (curve_degree, 180))
     return img
+
+
+def format_filename(in_string):
+    """Take a string and return a valid filename constructed from the string.
+
+    Args:
+        in_string: The string to convert to a filename.
+
+    This function uses a whitelist approach: any characters not present in valid_chars are removed. Spaces are
+    replaced with underscores.
+
+    Note: this method may produce invalid filenames such as ``, `.` or `..`
+    """
+    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+    in_string = in_string.replace(' ', '_')
+    file_name = ''.join(char for char in in_string if char in valid_chars)
+    return file_name

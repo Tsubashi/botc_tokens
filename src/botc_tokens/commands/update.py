@@ -1,27 +1,21 @@
 #!/usr/bin/env python
 # coding: utf-8
 """Download story from the requested url."""
-from urllib.request import urlopen, urlretrieve
-import urllib.parse
-import string
-import json
 import argparse
-import sys
-from bs4 import BeautifulSoup
-from pathlib import Path
-from rich import print
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
-from rich.live import Live
-from rich.console import Group
 from dataclasses import asdict
+import json
+from pathlib import Path
+import sys
+import urllib.parse
+from urllib.request import urlretrieve
+
+from rich import print
+from rich.live import Live
+
+from ..helpers.progress_group import setup_progress_group
 from ..helpers.role import Role
-from .. import data_dir
+from ..helpers.text_tools import format_filename
+from ..helpers.wiki_soup import WikiSoup
 
 
 def _parse_args():
@@ -37,233 +31,143 @@ def _parse_args():
 
 
 def run():
-    # Run the script
+    """Run the updater."""
     args = _parse_args()
-    u = Updater()
-    u.run(args)
+    progress_group, overall_progress, step_progress = setup_progress_group()
 
+    with Live(progress_group):
+        output_path = Path(args.output_dir)
+        # create overall progress bar
+        role_task = overall_progress.add_task("Updating role data...", total=None)
 
-class Updater:
+        # Download the official lists from the script tool by initializing the WikiSoup
+        step_task = step_progress.add_task("Downloading role data from the official script tool")
+        wiki = WikiSoup(args.script_filter)
 
-    def __init__(self):
-        """Prep the reminders and wiki soup."""
-        self.wiki_soups = {}
-        self.reminders = []
-        with open(data_dir / "known_reminders.json", "r") as f:
-            self.reminders = json.load(f)
-        self.reminder_overrides = []
+        # Open the reminder overrides file, if it exists
+        step_progress.update(step_task, description="Reading reminder overrides file")
+        if args.reminders:
+            with open(args.reminders, "r") as f:
+                wiki.reminder_overrides = json.load(f)
 
-    def _get_wiki_soup(self, role_name):
-        """Take a role name and return a BeautifulSoup object for the role's wiki page."""
-        # Check if we have already seen this role
-        role_name = role_name.replace(" ", "_")
-        if role_name not in self.wiki_soups:
-            role_name = role_name.replace("Of", "of")  # Fixes Spirit Of Ivory
-            url = f"https://wiki.bloodontheclocktower.com/{role_name}"
-            try:
-                html = urlopen(url).read()
-            except urllib.error.HTTPError as e:
-                if e.code == 404:
-                    raise RuntimeError(f"Could not find role {role_name} at {url}")
-                else:
-                    raise
-            self.wiki_soups[role_name] = BeautifulSoup(html, 'html5lib')
-        return self.wiki_soups[role_name]
+        # Step through each role and grab the relevant data before adding it to the list.
+        overall_progress.update(role_task, total=len(wiki.role_data))
+        for role in wiki.role_data:
+            step_progress.update(step_task, description=f"Found role: {role['name']}")
+            role_output_path = output_path / role['version'] / role['roleType']
+            role_output_path.mkdir(parents=True, exist_ok=True)
+            role_file = role_output_path / f"{format_filename(role['name'])}.json"
 
-    def _get_ability_text(self, role_name):
-        """Take a role name and grab the ability description."""
-        soup = self._get_wiki_soup(role_name)
-        summary_title = soup.find(id="Summary")
-        if not summary_title:
-            raise RuntimeError(f"Could not find summary section for {role_name}")
-        tag = summary_title.parent.find_next_sibling("p")
-        if not tag:
-            raise RuntimeError(f"Could not find ability description for {role_name}")
-        ability = tag.get_text()
-        ability = ability.replace("\n", " ")
-        ability = ability.strip('" ')
-        ability = ability.replace("\"", "'")
-        return ability
+            found_role = process_role(role, role_file, wiki, step_progress, step_task, role_output_path)
 
-    def _get_reminders(self, role_name):
-        """Take a role name and grab the reminders."""
-
-        # First check if we have the role in the override reminders file
-        if role_name in self.reminder_overrides:
-            return self.reminder_overrides[role_name]
-
-        # Next check if we have the role in the local reminders file
-        if role_name in self.reminders:
-            return self.reminders[role_name]
-
-        # If we don't have the role, go get it from the wiki
-        reminders = set()
-        soup = self._get_wiki_soup(role_name)
-        reminder_title = soup.find(id="How_to_Run")
-        if not reminder_title:
-            raise RuntimeError(f"Could not find 'How To Run' section for {role_name}")
-        paragraphs = reminder_title.parent.find_next_siblings("p")
-        for paragraph in paragraphs:
-            bold_list = paragraph.find_all("b")
-            for bold in bold_list:
-                text = bold.get_text()
-                if text.isupper():
-                    disallowed_reminders = [
-                        "YOU ARE",
-                        "THIS PLAYER IS",
-                        "THIS CHARACTER SELECTED YOU",
-                        "THESE CHARACTERS ARE NOT IN PLAY",
-                        "THIS IS THE DEMON",
-                        "THESE ARE YOUR MINIONS",
-                    ]
-                    if text not in disallowed_reminders:
-                        reminders.add(text)
-        return list(reminders)
-
-    def _get_big_icon_url(self, role_name):
-        """Take a role name and grab the corresponding icon url from the wiki."""
-        soup = self._get_wiki_soup(role_name)
-        icon_tag = soup.select_one("#character-details img")
-        if not icon_tag:
-            raise RuntimeError(f"Could not find icon for {role_name}")
-        icon_url = icon_tag["src"]
-        return icon_url
-
-    @staticmethod
-    def _format_filename(in_string):
-        """Take a string and return a valid filename constructed from the string.
-
-        Args:
-            in_string: The string to convert to a filename.
-
-        This function uses a whitelist approach: any characters not present in valid_chars are removed. Spaces are
-        replaced with underscores.
-
-        Note: this method may produce invalid filenames such as ``, `.` or `..`
-        """
-        valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-        in_string = in_string.replace(' ', '_')
-        file_name = ''.join(char for char in in_string if char in valid_chars)
-        return file_name
-
-    def run(self, args):
-        """Run the script.
-        Args:
-            args: The command line arguments.
-        """
-
-
-
-        # Overall progress bar
-        overall_progress = Progress(
-            TimeElapsedColumn(), BarColumn(), TextColumn("{task.description}")
-        )
-
-        # Progress bars for single steps (will be hidden when step is done)
-        step_progress = Progress(
-            TextColumn("  "),
-            TimeElapsedColumn(),
-            TextColumn("[bold purple]{task.description}"),
-            SpinnerColumn("simpleDots"),
-        )
-
-        # Group the progress bars
-        progress_group = Group(overall_progress, step_progress)
-
-        with Live(progress_group):
-            output_path = Path(args.output_dir)
-            # create overall progress bar
-            role_task = overall_progress.add_task("Updating role data...", total=None)
-
-            # Download the official lists from the script tool
-            step_task = step_progress.add_task("Downloading role data from the official script tool")
-            roles_from_web = urlopen("https://script.bloodontheclocktower.com/data/roles.json").read().decode('utf-8')
-            role_data = json.loads(roles_from_web)
-            # Filter the roles
-            role_data = [role for role in role_data if args.script_filter in role['version']]
-            night_data = urlopen("https://script.bloodontheclocktower.com/data/nightsheet.json").read().decode('utf-8')
-            night_json = json.loads(night_data)
-
-            # Open the reminder overrides file, if it exists
-            step_progress.update(step_task, description="Reading reminder overrides file")
-            if args.reminders:
-                with open(args.reminders, "r") as f:
-                    self.reminder_overrides = json.load(f)
-
-            # Step through each role and grab the relevant data before adding it to the list.
-            overall_progress.update(role_task, total=len(role_data))
-            for role in role_data:
-                name = role['name']
-                step_progress.update(step_task, description=f"Found role: {name}")
-                role_output_path = output_path / role['version'] / role['roleType']
-                role_output_path.mkdir(parents=True, exist_ok=True)
-
-                # Check to see if we already have a json file for this role
-                role_file = role_output_path / f"{self._format_filename(name)}.json"
-                found_role = Role(name=name)
-                if role_file.exists():
-                    try:
-                        with open(role_file, "r") as f:
-                            j = json.load(f)
-                        found_role = Role(**j)
-                    except json.decoder.JSONDecodeError:
-                        print(f"[red]Error:[/] Could not read {role_file}. Skipping.")
-                        overall_progress.update(role_task, advance=1)
-                        continue
-
-                # Get info from the wiki
-                if not found_role.ability:
-                    try:
-                        step_progress.update(step_task, description=f"Getting ability text for {name}")
-                        found_role.ability = self._get_ability_text(name)
-                    except RuntimeError:
-                        print(f"[red]Error:[/] No ability found for {name}")
-                if found_role.reminders is None:
-                    try:
-                        step_progress.update(step_task, description=f"Getting reminders for {name}")
-                        found_role.reminders = self._get_reminders(name)
-                    except RuntimeError:
-                        print(f"[red]Error:[/] No reminder info found for {name}")
-
-                # Grab the icon, checking first to see if it exists
-                if found_role.icon:
-                    icon_path = role_output_path / found_role.icon
-                    if not icon_path.exists():
-                        found_role.icon = None
-                # If we don't have the icon, go get it from the wiki
-                if not found_role.icon:
-                    try:
-                        step_progress.update(step_task, description=f"Getting icon for {name}")
-                        icon_url = self._get_big_icon_url(name)
-                        icon_url = urllib.parse.urljoin("https://wiki.bloodontheclocktower.com", icon_url)
-                        icon_path = role_output_path / f"{self._format_filename(name)}{Path(icon_url).suffix}"
-                        icon_path.parent.mkdir(parents=True, exist_ok=True)
-                        if not icon_path.exists():
-                            urlretrieve(icon_url, icon_path)
-                        found_role.icon = str(icon_path.name)
-                    except RuntimeError:
-                        print(f"[red]Error:[/] No icon found for {name}")
-
-                # Determine night actions
-                found_role.first_night = True if role['id'] in night_json['firstNight'] else False
-                found_role.other_nights = True if role['id'] in night_json['otherNight'] else False
-
-                # Check if the role affects setup
-                if "[" in found_role.ability:
-                    found_role.affects_setup = True
-
-                # Record home script and type
-                if not found_role.home_script:
-                    found_role.home_script = role['version']
-                if not found_role.type:
-                    found_role.type = role['roleType']
-
-                # Write individual role json
-                step_progress.update(step_task, description=f"Writing role file for {name}")
+            # Write individual role json, if we found it
+            if found_role is not None:
+                step_progress.update(step_task, description=f"Writing role file for {found_role.name}")
                 with open(role_file, "w") as f:
                     f.write(json.dumps(asdict(found_role)))
 
-                # Update progress bar
-                overall_progress.update(role_task, advance=1)
+            # Update progress bar
+            overall_progress.update(role_task, advance=1)
+        step_progress.stop_task(step_task)
 
-            step_progress.stop_task(step_task)
+
+def process_role(role, file, wiki, step_progress, step_task, role_output_path):
+    """Process a role, grabbing the relevant data and returning a Role object.
+
+    Args:
+        role (dict): The role data from the script tool.
+        file (Path): The file to write the role data to.
+        wiki (WikiSoup): The wiki soup object.
+        step_progress (Progress): The progress bar to update.
+        step_task (int): The task to update.
+        role_output_path (Path): The path to write the role file to.
+    """
+    name = role['name']
+    found_role = Role(name=name)
+
+    # Check if we have a json file for the role
+    if file.exists():
+        try:
+            with open(file, "r") as f:
+                j = json.load(f)
+            found_role = Role(**j)
+        except json.decoder.JSONDecodeError:
+            print(f"[red]Error:[/] Could not read {file}. Skipping.")
+            return None
+
+    # Get info from the wiki
+    step_progress.update(step_task, description=f"Getting ability text for {name}")
+    get_role_ability(found_role, wiki)
+
+    step_progress.update(step_task, description=f"Getting reminders for {name}")
+    get_role_reminders(found_role, wiki)
+
+    # Grab the icon, checking first to see if it exists
+    if found_role.icon:
+        icon_path = role_output_path / found_role.icon
+        if not icon_path.exists():
+            found_role.icon = None
+    # If we don't have the icon, go get it from the wiki
+    if not found_role.icon:
+        step_progress.update(step_task, description=f"Getting icon for {name}")
+        get_role_icon(found_role, role_output_path, wiki)
+    # Determine night actions
+    found_role.first_night = True if role['id'] in wiki.night_data['firstNight'] else False
+    found_role.other_nights = True if role['id'] in wiki.night_data['otherNight'] else False
+    # Check if the role affects setup
+    if "[" in found_role.ability:
+        found_role.affects_setup = True
+    # Record home script and type
+    if not found_role.home_script:
+        found_role.home_script = role['version']
+    if not found_role.type:
+        found_role.type = role['roleType']
+    return found_role
+
+
+def get_role_icon(found_role, role_output_path, wiki):
+    """Get the icon for a role, using the wiki if needed.
+
+    Args:
+        found_role (Role): The role to update.
+        role_output_path (Path): The path to write the icon to.
+        wiki (WikiSoup): The wiki soup object.
+    """
+    try:
+        icon_url = wiki.get_big_icon_url(found_role.name)
+        icon_url = urllib.parse.urljoin("https://wiki.bloodontheclocktower.com", icon_url)
+        icon_path = role_output_path / f"{format_filename(found_role.name)}{Path(icon_url).suffix}"
+        icon_path.parent.mkdir(parents=True, exist_ok=True)
+        if not icon_path.exists():
+            urlretrieve(icon_url, icon_path)
+        found_role.icon = str(icon_path.name)
+    except RuntimeError:
+        print(f"[red]Error:[/] No icon found for {found_role.name}")
+
+
+def get_role_ability(found_role, wiki):
+    """Get the ability for a role, using the wiki if needed.
+
+    Args:
+        found_role (Role): The role to update.
+        wiki (WikiSoup): The wiki soup object.
+    """
+    if not found_role.ability:
+        try:
+            found_role.ability = wiki.get_ability_text(found_role.name)
+        except RuntimeError:
+            print(f"[red]Error:[/] No ability found for {found_role.name}")
+
+
+def get_role_reminders(found_role, wiki):
+    """Get the reminders for a role, using the wiki if needed.
+
+    Args:
+        found_role (Role): The role to update.
+        wiki (WikiSoup): The wiki soup object.
+    """
+    if found_role.reminders is None:
+        try:
+            found_role.reminders = wiki.get_reminders(found_role.name)
+        except RuntimeError:
+            print(f"[red]Error:[/] No reminder info found for {found_role.name}")

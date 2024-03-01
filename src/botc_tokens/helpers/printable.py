@@ -1,10 +1,13 @@
-from wand.image import Image
+"""Create printable sheets based on a script json file."""
 from pathlib import Path
+
+from wand.image import Image
 
 
 class Printable:
     """Create printable sheets based on a script json file."""
     def __init__(self, output_dir, basename="page"):
+        """Create a new printable object."""
         # 8.5"x11" at 300dpi is 2550 x 3300px
         # Subtracting 74px from each side to account for printer margins leaves 2402 x 3152px
         self.page = Image(width=2402, height=3152, resolution=(300, 300))
