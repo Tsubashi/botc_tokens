@@ -185,13 +185,13 @@ class Updater:
             night_json = json.loads(night_data)
 
             # Open the reminder overrides file, if it exists
-            step_task.update(description="Reading reminder overrides file")
+            step_progress.update(step_task, description="Reading reminder overrides file")
             if args.reminders:
                 with open(args.reminders, "r") as f:
                     self.reminder_overrides = json.load(f)
 
             # Step through each role and grab the relevant data before adding it to the list.
-            role_task.update(total=len(role_data))
+            overall_progress.update(role_task, total=len(role_data))
             for role in role_data:
                 name = role['name']
                 step_progress.update(step_task, description=f"Found role: {name}")

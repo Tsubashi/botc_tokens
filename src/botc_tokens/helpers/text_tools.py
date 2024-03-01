@@ -73,7 +73,7 @@ def curved_text_to_image(text, token_type, token_diameter):
     if token_type == "reminder":
         font_size = token_diameter * 0.15
         font_filepath = str(component_path / "OpenSans-Regular.ttf")
-        color = "#FFFFFF"
+        color = "#ECEAED"
     else:
         font_size = token_diameter * 0.1
         font_filepath = str(component_path / "Dumbledor 2 Regular.ttf")
