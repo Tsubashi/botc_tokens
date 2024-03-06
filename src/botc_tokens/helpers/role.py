@@ -1,3 +1,4 @@
+"""A class to represent a role in a script."""
 from dataclasses import dataclass
 
 

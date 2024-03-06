@@ -1,19 +1,14 @@
+"""Create printable sheets based on a script json file."""
 import argparse
-from pathlib import Path
-from rich.progress import (
-    Progress,
-    TimeElapsedColumn,
-    BarColumn,
-    TextColumn,
-    TimeRemainingColumn,
-    SpinnerColumn,
-    Live,
-    Group
-)
 import json
+from pathlib import Path
 import sys
+
 from rich import print
+from rich.live import Live
+
 from ..helpers.printable import Printable
+from ..helpers.progress_group import setup_progress_group
 
 
 def _parse_args():
@@ -27,6 +22,12 @@ def _parse_args():
                         help="Name of the directory in which to find the token images. (Default: 'tokens')")
     parser.add_argument('-o', '--output-dir', type=str, default='printables',
                         help="Name of the directory in which to output the sheets. (Default: 'printables')")
+    parser.add_argument('--role-size', type=int, default=555,
+                        help="The radius (in pixels) of the role tokens. (Default: 555)")
+    parser.add_argument('--reminder-size', type=int, default=319,
+                        help="The radius (in pixels) of the reminder tokens. (Default: 319)")
+    parser.add_argument('--padding', type=int, default=0,
+                        help="The padding (in pixels) between tokens. (Default: 0)")
     args = parser.parse_args(sys.argv[2:])
     return args
 
@@ -55,30 +56,17 @@ def run():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Overall progress bar
-    overall_progress = Progress(
-        TimeElapsedColumn(), BarColumn(), TextColumn("{task.description}"), TimeRemainingColumn()
-    )
-
-    # Progress bars for single steps (will be hidden when step is done)
-    step_progress = Progress(
-        TextColumn("  |-"),
-        TextColumn("[bold purple]{task.description}"),
-        SpinnerColumn("simpleDots"),
-    )
-
-    # Group the progress bars
-    progress_group = Group(overall_progress, step_progress)
+    progress_group, overall_progress, step_progress = setup_progress_group()
 
     with Live(progress_group):
         overall_progress.add_task("Creating Sheets", total=None)
         step_task = step_progress.add_task("Adding roles")
-        role_page = Printable(output_dir, "roles")
-        reminder_page = Printable(output_dir, "reminders")
+        role_page = Printable(output_dir, "roles", padding=args.padding, diameter=args.role_size)
+        reminder_page = Printable(output_dir, "reminders", padding=args.padding, diameter=args.reminder_size)
         for role in script:
             if isinstance(role, dict):
                 continue  # Skip metadata
-            role_name = role.lower().replace("_", " ").strip()
+            role_name = role.lower().strip()
             step_progress.update(step_task, description=f"Adding {role_name.title()}")
             # See if we have tokens for this role
             role_file = next((t for t in role_images if role_name in t.name.lower().replace("'", "")), None)
@@ -91,6 +79,6 @@ def run():
                 reminder_page.add_token(reminder)
 
         # Save the last pages
-        step_progress.update(step_task, description=f"Saving pages")
+        step_progress.update(step_task, description="Saving remaining pages")
         role_page.save_page()
         reminder_page.save_page()

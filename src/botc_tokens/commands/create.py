@@ -1,21 +1,17 @@
-import json
-import sys
-from pathlib import Path
+"""Command to create token images to match json files in a directory tree."""
 import argparse
+import json
+from pathlib import Path
+import sys
+
 from rich import print
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
 from rich.live import Live
-from rich.console import Group
 from wand.image import Image
-from ..helpers.text_tools import curved_text_to_image, fit_ability_text
+
 from .. import component_path as default_component_path
+from ..helpers.progress_group import setup_progress_group
+from ..helpers.text_tools import curved_text_to_image, fit_ability_text, format_filename
+from ..helpers.token_components import TokenComponents
 
 
 def _parse_args():
@@ -30,6 +26,32 @@ def _parse_args():
                         help="The directory in which to find the token components files. (leaves, backgrounds, etc.)")
     args = parser.parse_args(sys.argv[2:])
     return args
+
+
+def create_reminder_token(reminder_bg_img, reminder_icon, reminder_output_path, reminder_text):
+    """Create and save a reminder token.
+
+    Args:
+        reminder_bg_img (wand.image.Image): The background image for the reminder token.
+        reminder_icon (wand.image.Image): The icon to be used for the reminder.
+        reminder_output_path (str): The path to save the reminder token to.
+        reminder_text (str): The text to be displayed on the reminder token.
+    """
+    reminder_icon_x = (reminder_bg_img.width - reminder_icon.width) // 2
+    reminder_icon_y = (reminder_bg_img.height - reminder_icon.height - int(reminder_bg_img.height * 0.15)) // 2
+    reminder_bg_img.composite(reminder_icon, left=reminder_icon_x, top=reminder_icon_y)
+    # Add the reminder text
+    text_img = curved_text_to_image(reminder_text.title(), "reminder", reminder_icon.width)
+    text_x = (reminder_bg_img.width - text_img.width) // 2
+    text_y = (reminder_bg_img.height - text_img.height - int(reminder_icon.height * 0.05))
+    reminder_bg_img.composite(text_img, left=text_x, top=text_y)
+    text_img.close()
+    # Resize to 319x319 since that will yield a 27mm token when printed at 300dpi
+    # This allows for a 2mm bleed
+    reminder_bg_img.resize(width=319, height=319)
+    # Save the reminder token
+    reminder_bg_img.save(filename=reminder_output_path)
+    reminder_bg_img.close()
 
 
 def run():
@@ -49,95 +71,52 @@ def run():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load the component images
-    component_path = Path(args.component_dir)
-    token_bg = Image(filename=component_path / "TokenBG.png")
-    reminder_bg = Image(filename=component_path / "ReminderBG.png")
-    leaves = [
-        Image(filename=component_path / "Leaf1.png"),
-        Image(filename=component_path / "Leaf2.png"),
-        Image(filename=component_path / "Leaf3.png"),
-        Image(filename=component_path / "Leaf4.png"),
-        Image(filename=component_path / "Leaf5.png"),
-        Image(filename=component_path / "Leaf6.png"),
-        Image(filename=component_path / "Leaf7.png"),
-    ]
-    left_leaf = Image(filename=component_path / "LeafLeft.png")
-    right_leaf = Image(filename=component_path / "LeafRight.png")
-    setup_flower = Image(filename=component_path / "SetupFlower.png")
+    components = TokenComponents(args.component_dir)
 
     # Create the tokens
-    # Overall progress bar
-    overall_progress = Progress(
-        TimeElapsedColumn(), BarColumn(), TextColumn("{task.description}"), TimeRemainingColumn()
-    )
-
-    # Progress bars for single steps (will be hidden when step is done)
-    step_progress = Progress(
-        TextColumn("  |-"),
-        TextColumn("[bold purple]{task.description}"),
-        SpinnerColumn("simpleDots"),
-    )
-
-    # Group the progress bars
-    progress_group = Group(overall_progress, step_progress)
+    progress_group, overall_progress, step_progress = setup_progress_group()
 
     with Live(progress_group):
         output_path = Path(args.output_dir)
         overall_task = overall_progress.add_task("Creating Tokens...", total=len(roles))
         step_task = step_progress.add_task("Reading roles...")
         for role in roles:
+            step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
             # Make sure our target directory exists
             role_output_path = output_path / role['home_script'] / role['type']
             role_output_path.mkdir(parents=True, exist_ok=True)
 
             # Skip if the token already exists
-            token_output_path = role_output_path / f"{role['name']}.png"
+            token_output_path = role_output_path / f"{format_filename(role['name'])}.png"
             if token_output_path.exists():
                 continue
 
-            # Composite the various pieces of the token.
-            step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
-            token = token_bg.clone()
-            icon = Image(filename=role['icon'])
-            token_icon = icon.clone()
-            token_icon.transform(resize=f"{token_bg.width*0.7}x{reminder_bg.height*0.7}^")
-
-            # Check if we have reminders. If so, create them.
-            reminder_icon = icon.clone()
-            reminder_icon.transform(resize=f"{reminder_bg.width}x{reminder_bg.height}>")
-            # Add leaves to the big token
-            for leaf in leaves[:len(role['reminders'])]:
-                token.composite(leaf, left=0, top=0)
-
             # Create the reminder tokens
+            icon = Image(filename=role['icon'])
+            reminder_icon = icon.clone()
+            reminder_icon.transform(resize=f"{components.reminder_bg.width}x{components.reminder_bg.height}>")
             for reminder_text in role['reminders']:
-                reminder_name = f"{role['name']}-Reminder-{reminder_text.replace(':', '-')}"
+                step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
+                reminder_name = f"{role['name']}-Reminder-{format_filename(reminder_text)}"
                 reminder_output_path = role_output_path / f"{reminder_name}.png"
                 duplicate_counter = 1
                 while reminder_output_path.exists():
                     duplicate_counter += 1
                     reminder_output_path = role_output_path / f"{reminder_name}-{duplicate_counter}.png"
 
-                step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
-                reminder = reminder_bg.clone()
-                reminder_icon_x = (reminder.width - reminder_icon.width) // 2
-                reminder_icon_y = (reminder.height - reminder_icon.height - int(reminder.height*0.15)) // 2
-                reminder.composite(reminder_icon, left=reminder_icon_x, top=reminder_icon_y)
-                # Add the reminder text
-                text_img = curved_text_to_image(reminder_text.title(), "reminder", reminder_icon.width)
-                text_x = (reminder.width - text_img.width) // 2
-                text_y = (reminder.height - text_img.height - int(reminder_icon.height*0.05))
-                reminder.composite(text_img, left=text_x, top=text_y)
-                text_img.close()
-
-                # Resize to 319x319 since that will yield a 27mm token when printed at 300dpi
-                # This allows for a 2mm bleed
-                reminder.resize(width=319, height=319)
-
-                # Save the reminder token
-                reminder.save(filename=reminder_output_path)
-                reminder.close()
+                reminder_bg_img = components.get_reminder_bg()
+                create_reminder_token(reminder_bg_img, reminder_icon, reminder_output_path, reminder_text)
             reminder_icon.close()
+
+            # Composite the various pieces of the token.
+            token = components.get_role_bg()
+            token_icon = icon.clone()
+            token_icon.transform(resize=f"{token.width * 0.7}x{token.height * 0.7}^")
+
+            # Check if we have reminders. If so, add leaves.
+            # Add leaves to the big token
+            for leaf in components.leaves[:len(role['reminders'])]:
+                token.composite(leaf, left=0, top=0)
 
             # Determine where to place the icon
             icon_x = (token.width - token_icon.width) // 2
@@ -147,28 +126,28 @@ def run():
 
             # Check for modifiers
             if role.get('first_night'):
-                token.composite(left_leaf, left=0, top=0)
+                token.composite(components.left_leaf, left=0, top=0)
             if role.get('other_nights'):
-                token.composite(right_leaf, left=0, top=0)
+                token.composite(components.right_leaf, left=0, top=0)
             if role.get('affects_setup'):
-                token.composite(setup_flower, left=0, top=0)
+                token.composite(components.setup_flower, left=0, top=0)
 
             # Add ability text to the token
             step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
             ability_text_img = fit_ability_text(
                 text=role['ability'],
-                font_size=int(token.height*0.055),
-                first_line_width=int(token.width*.52),
-                step=int(token.width*.1)
+                font_size=int(token.height * 0.055),
+                first_line_width=int(token.width * .52),
+                step=int(token.width * .1)
             )
             ability_text_x = (token.width - ability_text_img.width) // 2
-            token.composite(ability_text_img, left=ability_text_x, top=int(token.height*0.09))
+            token.composite(ability_text_img, left=ability_text_x, top=int(token.height * 0.09))
             ability_text_img.close()
 
             # Add the role name to the token
             text_img = curved_text_to_image(role['name'], "role", token.width)
             text_x = (token.width - text_img.width) // 2
-            text_y = (token.height - text_img.height - int(token.height*0.08))
+            text_y = (token.height - text_img.height - int(token.height * 0.08))
             token.composite(text_img, left=text_x, top=text_y)
             text_img.close()
 
@@ -184,14 +163,4 @@ def run():
             overall_progress.update(overall_task, advance=1)
 
     # Close the component images
-    token_bg.close()
-    reminder_bg.close()
-    for leaf in leaves:
-        leaf.close()
-    left_leaf.close()
-    right_leaf.close()
-    setup_flower.close()
-
-
-
-
+    components.close()
