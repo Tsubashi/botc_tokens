@@ -66,7 +66,7 @@ def run():
         for role in script:
             if isinstance(role, dict):
                 continue  # Skip metadata
-            role_name = role.lower().replace("_", " ").strip()
+            role_name = role.lower().strip()
             step_progress.update(step_task, description=f"Adding {role_name.title()}")
             # See if we have tokens for this role
             role_file = next((t for t in role_images if role_name in t.name.lower().replace("'", "")), None)
@@ -79,6 +79,6 @@ def run():
                 reminder_page.add_token(reminder)
 
         # Save the last pages
-        step_progress.update(step_task, description="Saving pages")
+        step_progress.update(step_task, description="Saving remaining pages")
         role_page.save_page()
         reminder_page.save_page()
