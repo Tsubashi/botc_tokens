@@ -22,6 +22,12 @@ def _parse_args():
                         help="Name of the directory in which to find the token images. (Default: 'tokens')")
     parser.add_argument('-o', '--output-dir', type=str, default='printables',
                         help="Name of the directory in which to output the sheets. (Default: 'printables')")
+    parser.add_argument('--role-size', type=int, default=555,
+                        help="The radius (in pixels) of the role tokens. (Default: 555)")
+    parser.add_argument('--reminder-size', type=int, default=319,
+                        help="The radius (in pixels) of the reminder tokens. (Default: 319)")
+    parser.add_argument('--padding', type=int, default=0,
+                        help="The padding (in pixels) between tokens. (Default: 0)")
     args = parser.parse_args(sys.argv[2:])
     return args
 
@@ -55,8 +61,8 @@ def run():
     with Live(progress_group):
         overall_progress.add_task("Creating Sheets", total=None)
         step_task = step_progress.add_task("Adding roles")
-        role_page = Printable(output_dir, "roles")
-        reminder_page = Printable(output_dir, "reminders")
+        role_page = Printable(output_dir, "roles", padding=args.padding, diameter=args.role_size)
+        reminder_page = Printable(output_dir, "reminders", padding=args.padding, diameter=args.reminder_size)
         for role in script:
             if isinstance(role, dict):
                 continue  # Skip metadata
