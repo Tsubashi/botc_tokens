@@ -25,8 +25,12 @@ class Printable:
             return
         self.page.save(filename=self.output_dir / f"{self.basename}_{self.page_number}.pdf")
         self.page.close()
-        self.page = Image(width=4952, height=6452, resolution=(600, 600))
+
+        # Reset the state
+        self.page = Image(width=2402, height=3152, resolution=(300, 300))
         self.current_x, self.current_y = 0, 0
+        self.page_number += 1
+        self.next_row_should_be_inset = False
 
     def add_token(self, token_file):
         """Add a token to the current page."""
