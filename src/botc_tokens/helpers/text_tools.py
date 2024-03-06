@@ -138,6 +138,6 @@ def format_filename(in_string):
     Note: this method may produce invalid filenames such as ``, `.` or `..`
     """
     valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-    in_string = in_string.replace(' ', '_')
+    in_string = in_string.replace(' ', '_').replace('/', '-').replace('\\', '-').replace(':', '-').replace('?', 'Q')
     file_name = ''.join(char for char in in_string if char in valid_chars)
     return file_name

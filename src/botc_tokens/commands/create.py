@@ -10,7 +10,7 @@ from wand.image import Image
 
 from .. import component_path as default_component_path
 from ..helpers.progress_group import setup_progress_group
-from ..helpers.text_tools import curved_text_to_image, fit_ability_text
+from ..helpers.text_tools import curved_text_to_image, fit_ability_text, format_filename
 from ..helpers.token_components import TokenComponents
 
 
@@ -87,7 +87,7 @@ def run():
             role_output_path.mkdir(parents=True, exist_ok=True)
 
             # Skip if the token already exists
-            token_output_path = role_output_path / f"{role['name']}.png"
+            token_output_path = role_output_path / f"{format_filename(role['name'])}.png"
             if token_output_path.exists():
                 continue
 
@@ -97,7 +97,7 @@ def run():
             reminder_icon.transform(resize=f"{components.reminder_bg.width}x{components.reminder_bg.height}>")
             for reminder_text in role['reminders']:
                 step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
-                reminder_name = f"{role['name']}-Reminder-{reminder_text.replace(':', '-')}"
+                reminder_name = f"{role['name']}-Reminder-{format_filename(reminder_text)}"
                 reminder_output_path = role_output_path / f"{reminder_name}.png"
                 duplicate_counter = 1
                 while reminder_output_path.exists():
