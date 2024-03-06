@@ -16,8 +16,9 @@ classifiers = [
     "Programming Language :: Python",
 ]
 dependencies = [
-    "wand",
-    "beautifulsoup4",
+    "wand ~= 0.6.13",
+    "beautifulsoup4 ~= 4.12.0",
+    "html5lib ~= 1.1.0",
     "rich ~= 12.6.0"
 ]
 
