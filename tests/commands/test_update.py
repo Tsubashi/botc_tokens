@@ -6,36 +6,10 @@ from pathlib import Path
 from unittest import mock
 
 # Third Party
-from testhelpers import check_output_folder
+from testhelpers import check_output_folder, expected_role_json, webmock_list
 
 # Application Specific
 from botc_tokens.commands import update
-
-
-expected_json = {
-    "First.json": {
-        'ability': 'First ability description',
-        'affects_setup': False,
-        'first_night': True,
-        'home_script': '54 - Unreal Experimental',
-        'icon': 'First.png',
-        'name': 'First',
-        'other_nights': True,
-        'reminders': [],
-        'type': 'townsfolk'
-    },
-    "Second.json": {
-        'ability': 'Second ability description [Affects Setup]',
-        'affects_setup': True,
-        'first_night': False,
-        'home_script': '54 - Unreal Experimental',
-        'icon': 'Second.png',
-        'name': 'Second',
-        'other_nights': True,
-        'reminders': ["SECOND REMINDER"],
-        'type': 'demon'
-    }
-}
 
 
 @contextmanager
@@ -43,74 +17,7 @@ def web_mock():
     """Mock out actual web access."""
     # First create the return data we would expect from the web, in the order we expect it.
     urlopen_read_mock = mock.MagicMock()
-    urlopen_read_mock.read.side_effect = [
-        # The first call is for the role data
-        b"""[
-             {
-                "id": "First",
-                "name": "First",
-                "roleType": "townsfolk",
-                "print": "unused",
-                "icon": "unused",
-                "version": "54 - Unreal Experimental",
-                "isDisabled": false
-              },
-              {
-                "id": "Second",
-                "name": "Second",
-                "roleType": "demon",
-                "print": "unused",
-                "icon": "unused",
-                "version": "54 - Unreal Experimental",
-                "isDisabled": false
-              },
-              {
-                "id": "Third",
-                "name": "Third",
-                "roleType": "outsider",
-                "print": "unused",
-                "icon": "unused",
-                "version": "99 - Ignored",
-                "isDisabled": false
-              }
-            ]""",
-        # The second call is for the night data
-        b"""{
-              "firstNight": [
-                "DUSK",
-                "First"
-              ],
-              "otherNight": [
-                "DUSK",
-                "First",
-                "Second"
-              ]
-            }""",
-        # The third call is for the first role's wiki page
-        b"""<html>
-              <body>
-                <div><h2 id="Summary">First ability</h2></div>
-                <p>First ability description</p>
-                <div><h2 id="How_to_Run">How To Run</h2></div>
-                <div id="character-details"><img src="First.png" /></div>
-              </body>
-            </html>""",
-        # The fourth call is for the second role's wiki page
-        b"""<html>
-              <body>
-                <div><h2 id="Summary">Second ability</h2></div>
-                <p>Second ability description [Affects Setup]</p>
-                <div><h2 id="How_to_Run">How To Run</h2></div>
-                <p><b>SECOND REMINDER</b></p>
-                <div id="character-details"><img src="Second.png" /></div>
-              </body>
-            </html>""",
-        # The fifth call is for the third role's wiki page, which we will show as blank
-        b"""<html>
-              <body>
-              </body>
-            </html>""",
-    ]
+    urlopen_read_mock.read.side_effect = webmock_list
 
     # Now mock out all the web calls to instead return the data we created
     with mock.patch("botc_tokens.helpers.wiki_soup.urlopen") as urlopen_mock:
@@ -125,10 +32,10 @@ def check_expected_json(input_file_path):
     """Ensure each file exists and, if it is a json file, matches what we expect."""
     assert input_file_path.is_file()
     if input_file_path.suffix == ".json":
-        assert input_file_path.name in expected_json
+        assert input_file_path.name in expected_role_json
         with open(input_file_path, "r") as f:
             j = json.load(f)
-        assert j == expected_json.get(input_file_path.name)
+        assert j == expected_role_json.get(input_file_path.name)
 
 
 def test_update_command(tmp_path):
@@ -153,7 +60,7 @@ def test_update_existing_folder(tmp_path):
     first_file = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json"
     first_file.parent.mkdir(parents=True, exist_ok=True)
     with open(first_file, "w") as f:
-        json.dump(expected_json.get("First.json"), f)
+        json.dump(expected_role_json.get("First.json"), f)
     with mock.patch("sys.argv", ["botc_tokens", "update", "--output", str(output_path)]):
         with web_mock():
             update.run()
@@ -276,7 +183,7 @@ def test_update_existing_icon_and_json(tmp_path):
     json_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json"
     json_path.parent.mkdir(parents=True, exist_ok=True)
     with open(json_path, "w") as f:
-        json.dump(expected_json.get("First.json"), f)
+        json.dump(expected_role_json.get("First.json"), f)
     with mock.patch("sys.argv", ["botc_tokens", "update", "--output", str(output_path)]):
         with web_mock():
             update.run()
