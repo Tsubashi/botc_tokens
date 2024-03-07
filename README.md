@@ -1,7 +1,7 @@
 # Token Tools for Blood on the Clocktower
 A simple fan-made utility to help create custom tokens for the game Blood on the Clocktower.
 
-![An example of tokens made by this utility](example/example.jpg)
+![An example of tokens made by this utility](https://raw.githubusercontent.com/Tsubashi/botc_tokens-Examples/stable/example.jpg)
 
 ## Installation
 To use this tool, you will need to have Python 3 installed on your computer. You can download it from the [official website](https://www.python.org/downloads/).
