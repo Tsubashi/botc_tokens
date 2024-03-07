@@ -24,7 +24,7 @@ def fit_ability_text(text, font_size, first_line_width, step):
         return img
     with Drawing() as draw:
         # Assign font details
-        draw.font = str(component_path / "OpenSans-Light.ttf")
+        draw.font = str(component_path / "TradeGothic.otf")
         draw.font_size = font_size / 0.9  # We will manipulate the font size in the loop, so start slightly larger
         draw.fill_color = Color("#000000")
         # Determine how many lines we need and how long each line needs to be.
