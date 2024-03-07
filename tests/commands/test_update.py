@@ -222,3 +222,69 @@ def test_update_missing(tmp_path, capsys):
     assert "No reminder info found" in output.out
 
 
+def test_update_icon_already_exists(tmp_path):
+    """Test when the icon already exists."""
+    output_path = tmp_path / "roles"
+    output_path.mkdir()
+    icon_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.png"
+    icon_path.parent.mkdir(parents=True, exist_ok=True)
+    icon_path.touch()
+    with mock.patch("sys.argv", ["botc_tokens", "update", "--output", str(output_path)]):
+        with web_mock():
+            update.run()
+
+    # Verify that it worked
+    expected_files = [
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
+        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
+    ]
+    check_output_folder(output_path, expected_files=expected_files)
+
+
+def test_update_custom_reminders_file(tmp_path):
+    """Test when the reminders file is specified."""
+    reminders_file = tmp_path / "reminders.json"
+    with open(reminders_file, "w") as f:
+        json.dump({"First": ["Custom reminder"]}, f)
+    output_path = tmp_path / "roles"
+    with mock.patch("sys.argv", ["botc_tokens", "update", "--output", str(output_path), "--reminders", str(reminders_file)]):
+        with web_mock():
+            update.run()
+
+    # Verify that it worked
+    expected_files = [
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
+    ]
+    check_output_folder(output_path, expected_files=expected_files)
+    with open(output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json", "r") as f:
+        j = json.load(f)
+    assert j["reminders"] == ["Custom reminder"]
+    with open(output_path / "54 - Unreal Experimental" / "demon" / "Second.json", "r") as f:
+        j = json.load(f)
+    assert j["reminders"] == ["SECOND REMINDER"]
+
+
+def test_update_existing_icon_and_json(tmp_path):
+    """Test when the icon and json file already exist."""
+    output_path = tmp_path / "roles"
+    output_path.mkdir()
+    icon_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.png"
+    icon_path.parent.mkdir(parents=True, exist_ok=True)
+    icon_path.touch()
+    json_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json"
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(json_path, "w") as f:
+        json.dump(expected_json.get("First.json"), f)
+    with mock.patch("sys.argv", ["botc_tokens", "update", "--output", str(output_path)]):
+        with web_mock():
+            update.run()
+
+    # Verify that it worked
+    expected_files = [
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
+        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
+    ]
+    check_output_folder(output_path, expected_files=expected_files)
