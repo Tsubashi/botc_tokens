@@ -24,11 +24,17 @@ def _parse_args():
                         help="Name of the directory in which to output the tokens. (Default: 'tokens')")
     parser.add_argument('--component-dir', type=str, nargs="?", default=default_component_path,
                         help="The directory in which to find the token components files. (leaves, backgrounds, etc.)")
+    parser.add_argument('--role-diameter', type=int, default=575,
+                        help="The diameter (in pixels) to use for role tokens. Components will be resized to fit. "
+                             "(Default: 555)")
+    parser.add_argument('--reminder-diameter', type=int, default=325,
+                        help="The diameter (in pixels) to use for reminder tokens. Components will be resized to fit. "
+                             "(Default: 319)")
     args = parser.parse_args(sys.argv[2:])
     return args
 
 
-def create_reminder_token(reminder_bg_img, reminder_icon, reminder_output_path, reminder_text):
+def create_reminder_token(reminder_bg_img, reminder_icon, reminder_output_path, reminder_text, reminder_diameter=319):
     """Create and save a reminder token.
 
     Args:
@@ -36,6 +42,7 @@ def create_reminder_token(reminder_bg_img, reminder_icon, reminder_output_path, 
         reminder_icon (wand.image.Image): The icon to be used for the reminder.
         reminder_output_path (str): The path to save the reminder token to.
         reminder_text (str): The text to be displayed on the reminder token.
+        reminder_diameter (int): The diameter (in pixels) to use for reminder tokens. Components will be resized to fit.
     """
     reminder_icon_x = (reminder_bg_img.width - reminder_icon.width) // 2
     reminder_icon_y = (reminder_bg_img.height - reminder_icon.height - int(reminder_bg_img.height * 0.15)) // 2
@@ -46,9 +53,8 @@ def create_reminder_token(reminder_bg_img, reminder_icon, reminder_output_path, 
     text_y = (reminder_bg_img.height - text_img.height - int(reminder_icon.height * 0.05))
     reminder_bg_img.composite(text_img, left=text_x, top=text_y)
     text_img.close()
-    # Resize to 319x319 since that will yield a 27mm token when printed at 300dpi
-    # This allows for a 2mm bleed
-    reminder_bg_img.resize(width=319, height=319)
+    # Resize to requested diameter
+    reminder_bg_img.resize(width=reminder_diameter, height=reminder_diameter)
     # Save the reminder token
     reminder_bg_img.save(filename=reminder_output_path)
     reminder_bg_img.close()
@@ -105,7 +111,9 @@ def run():
                     reminder_output_path = role_output_path / f"{reminder_name}-{duplicate_counter}.png"
 
                 reminder_bg_img = components.get_reminder_bg()
-                create_reminder_token(reminder_bg_img, reminder_icon, reminder_output_path, reminder_text)
+                create_reminder_token(
+                    reminder_bg_img, reminder_icon, reminder_output_path, reminder_text, args.reminder_diameter
+                )
             reminder_icon.close()
 
             # Composite the various pieces of the token.
@@ -151,9 +159,8 @@ def run():
             token.composite(text_img, left=text_x, top=text_y)
             text_img.close()
 
-            # Resize to 555x555, since that will yield a 47mm token when printed at 300dpi
-            # This allows for a 2mm bleed
-            token.resize(width=555, height=555)
+            # Resize to requested diameter
+            token.resize(width=args.role_diameter, height=args.role_diameter)
 
             # Save the token
             token.save(filename=token_output_path)

@@ -22,12 +22,18 @@ def _parse_args():
                         help="Name of the directory in which to find the token images. (Default: 'tokens')")
     parser.add_argument('-o', '--output-dir', type=str, default='printables',
                         help="Name of the directory in which to output the sheets. (Default: 'printables')")
-    parser.add_argument('--role-size', type=int, default=555,
-                        help="The radius (in pixels) of the role tokens. (Default: 555)")
-    parser.add_argument('--reminder-size', type=int, default=319,
-                        help="The radius (in pixels) of the reminder tokens. (Default: 319)")
+    parser.add_argument('--fixed-role-size', type=int, default=None,
+                        help="The radius (in pixels) to allocate per role tokens. "
+                             "(Default: The first token's largest dimension)")
+    parser.add_argument('--fixed-reminder-size', type=int, default=None,
+                        help="The radius (in pixels) to allocate per reminder tokens. "
+                             "(Default: The first token's largest dimension)")
     parser.add_argument('--padding', type=int, default=0,
                         help="The padding (in pixels) between tokens. (Default: 0)")
+    parser.add_argument('--paper-width', type=int, default=2402,
+                        help="The width (in pixels) of the paper to use for the tokens. (Default: 2402)")
+    parser.add_argument('--paper-height', type=int, default=3152,
+                        help="The height (in pixels) of the paper to use for the tokens. (Default: 3152)")
     args = parser.parse_args(sys.argv[2:])
     return args
 
@@ -61,8 +67,22 @@ def run():
     with Live(progress_group):
         overall_progress.add_task("Creating Sheets", total=None)
         step_task = step_progress.add_task("Adding roles")
-        role_page = Printable(output_dir, "roles", padding=args.padding, diameter=args.role_size)
-        reminder_page = Printable(output_dir, "reminders", padding=args.padding, diameter=args.reminder_size)
+        role_page = Printable(
+            output_dir,
+            basename="roles",
+            page_width=args.paper_width,
+            page_height=args.paper_height,
+            padding=args.padding,
+            diameter=args.fixed_role_size
+        )
+        reminder_page = Printable(
+            output_dir,
+            basename="reminders",
+            page_width=args.paper_width,
+            page_height=args.paper_height,
+            padding=args.padding,
+            diameter=args.fixed_role_size
+        )
         for role in script:
             if isinstance(role, dict):
                 continue  # Skip metadata
