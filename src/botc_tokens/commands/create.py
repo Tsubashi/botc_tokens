@@ -22,7 +22,7 @@ def _parse_args():
         description='Create token images to match json files in a directory tree.')
     parser.add_argument('search_dir', type=str, default="inputs", nargs="?",
                         help='The top level directory in which to begin the search.')
-    parser.add_argument('output_dir', type=str, default='tokens', nargs="?",
+    parser.add_argument('-o','--output_dir', type=str, default='tokens',
                         help="Name of the directory in which to output the tokens. (Default: 'tokens')")
     parser.add_argument('--components', type=str, nargs="?", default=default_component_path,
                         help="The directory or zip in which to find the token components. (leaves, backgrounds, etc.)")
@@ -120,7 +120,10 @@ def create_role_token(token_icon, role, components, output, diameter):
 def run():
     """Use JSON to create a set of tokens."""
     args = _parse_args()
-    json_files = Path(args.search_dir).rglob("*.json")
+    json_files = [file for file in Path(args.search_dir).rglob("*.json")]
+    if len(json_files) == 0:
+        print("[red]Error: [/][bold]No JSON files found in the search directory.[/]")
+        return
     roles = []
     print("[green]Finding Roles...[/]")
     for json_file in json_files:
@@ -144,7 +147,7 @@ def run():
               "valid components package.[/]")
         return
     except FileNotFoundError as e:
-        print(f"\n[red]Error:[/][bold] Could not load components from '{args.components}': {str(e)}")
+        print(f"\n[red]Error:[/][bold] Unable to load components from '{args.components}': {str(e)}")
         return
 
     # Create the tokens
