@@ -1,9 +1,15 @@
 """A simple class for preloading token components."""
+# Standard Library
 from pathlib import Path
+from shutil import copy
 from tempfile import TemporaryDirectory
 import zipfile
 
+# Third Party
 from wand.image import Image
+
+# Application Specific
+from .. import component_path as default_component_path
 
 
 class TokenComponents:
@@ -26,13 +32,28 @@ class TokenComponents:
         "RoleName.*"
     ]
 
-    def __init__(self, component_package):
+    def __init__(self, component_package=None):
         """Load all the token components (backgrounds, leaves, etc.).
 
         Args:
             component_package (str): The directory or zip file in which to find the token components.
         """
+        # Load the components from our own package if none are specified
+        if not component_package:
+            component_package = default_component_path
+
         self.comp_path = Path(component_package)
+
+        # Create a temporary directory in case we need to unzip a package
+        self.temp_dir = TemporaryDirectory(suffix=f"-{self.comp_path.name}")
+
+        # Handle zipped packages
+        if self.comp_path.is_file():
+            # If it is a file, presume it's a zipped package regardless of extension
+            self._unzip_package()
+            # Reset comp_path to the unzipped package directory
+            self.comp_path = Path(self.temp_dir.name) / self.comp_path.stem
+
         self._load_components()
 
     def _verify_package(self):
@@ -43,9 +64,9 @@ class TokenComponents:
             except StopIteration:
                 raise FileNotFoundError(f"Missing required file: {file}")
 
-    def _unzip_package(self, zip_file, temp_dir):
+    def _unzip_package(self):
         """Unzip the component package, only pulling the pieces we need."""
-        with zipfile.ZipFile(zip_file, "r") as zip_ref:
+        with zipfile.ZipFile(self.comp_path, "r") as zip_ref:
             # Only pull what we expect. This will hopefully mitigate the risk of zip bombs or other unpleasantries.
             file_list = zip_ref.namelist()
             for file in self.required_files:
@@ -56,17 +77,10 @@ class TokenComponents:
                     file_in_zip = next(f for f in file_list if file.replace("*", "") in f)
                 except StopIteration:
                     raise FileNotFoundError(f"Zip package is missing: {file}")
-                zip_ref.extract(file_in_zip, temp_dir.name)
+                zip_ref.extract(file_in_zip, self.temp_dir.name)
 
     def _load_components(self):
         """Load the token components."""
-        temp_dir = TemporaryDirectory(suffix=f"-{self.comp_path.name}")
-        if self.comp_path.is_file():
-            # Presume it's a zipped package
-            self._unzip_package(self.comp_path, temp_dir)
-            # Reset comp_path to the unzipped package directory
-            self.comp_path = Path(temp_dir.name) / self.comp_path.stem
-
         # Make sure we have everything before we move forward.
         self._verify_package()
 
@@ -89,9 +103,6 @@ class TokenComponents:
         self.ReminderTextFont = next(self.comp_path.glob("ReminderText.*"))
         self.RoleNameFont = next(self.comp_path.glob("RoleName.*"))
 
-        # Clean up the temp directory
-        temp_dir.cleanup()
-
     def get_reminder_bg(self):
         """Get the reminder background image."""
         return self.reminder_bg.clone()
@@ -100,8 +111,22 @@ class TokenComponents:
         """Get the role background image."""
         return self.role_bg.clone()
 
+    def dump(self, target_dir):
+        """Dump all component files to a target directory."""
+        target_dir = Path(target_dir)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for file in self.required_files:
+            try:
+                source = next(self.comp_path.glob(file))
+            except StopIteration:
+                raise FileNotFoundError(f"Unable to find '{file}' despite it being loaded. Perhaps the components "
+                                        "package was modified after loading?")
+            target = target_dir / source.name
+            copy(source, target)
+
     def close(self):
         """Close the token components."""
+        # Close all loaded image
         self.role_bg.close()
         self.reminder_bg.close()
         for leaf in self.leaves:
@@ -109,3 +134,6 @@ class TokenComponents:
         self.left_leaf.close()
         self.right_leaf.close()
         self.setup_flower.close()
+
+        # Clean up the temp directory
+        self.temp_dir.cleanup()

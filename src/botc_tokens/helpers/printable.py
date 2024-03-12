@@ -1,8 +1,12 @@
 """Create printable sheets based on a script json file."""
+# Standard Library
 import math
 from pathlib import Path
 
+# Third Party
 from wand.image import Image
+
+# Application Specific
 
 
 class Printable:

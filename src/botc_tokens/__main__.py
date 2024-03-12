@@ -5,7 +5,7 @@ import sys
 from rich import print
 
 from .__version__ import version
-from .commands import create, group, update
+from .commands import create, dump_components, group, update
 
 
 def _print_version():
@@ -16,8 +16,9 @@ def _print_version():
 
 # Set up the dictionary of commands. The values are tuples, first the function to run, second the description.
 allowed_commands = {
-    "group": (group.run, "Create printable sheets of roles and reminder from a json script file."),
     "create": (create.run, "Create token images to match json files in a directory tree."),
+    "dump-components": (dump_components.run, "Write all the default components to the specified directory."),
+    "group": (group.run, "Create printable sheets of roles and reminder from a json script file."),
     "update": (update.run, "Download roles from the wiki, with associated icon and description."),
     "version": (_print_version, "Print version and exit."),
 }
