@@ -8,6 +8,23 @@ from wand.image import Image
 
 class TokenComponents:
     """A simple class for preloading token components."""
+    required_files = [
+        "TokenBG.png",
+        "ReminderBG.png",
+        "Leaf1.png",
+        "Leaf2.png",
+        "Leaf3.png",
+        "Leaf4.png",
+        "Leaf5.png",
+        "Leaf6.png",
+        "Leaf7.png",
+        "LeafLeft.png",
+        "LeafRight.png",
+        "SetupFlower.png",
+        "AbilityText.*",
+        "ReminderText.*",
+        "RoleName.*"
+    ]
 
     def __init__(self, component_package):
         """Load all the token components (backgrounds, leaves, etc.).
@@ -18,13 +35,40 @@ class TokenComponents:
         self.comp_path = Path(component_package)
         self._load_components()
 
+    def _verify_package(self):
+        """Ensure that we have all the component pieces that we need."""
+        for file in self.required_files:
+            try:
+                next(self.comp_path.glob(file))
+            except StopIteration:
+                raise FileNotFoundError(f"Missing required file: {file}")
+
+    def _unzip_package(self, zip_file, temp_dir):
+        """Unzip the component package, only pulling the pieces we need."""
+        with zipfile.ZipFile(zip_file, "r") as zip_ref:
+            # Only pull what we expect. This will hopefully mitigate the risk of zip bombs or other unpleasantries.
+            file_list = zip_ref.namelist()
+            for file in self.required_files:
+                # Search through all directories and find the first match. This allows us to accept zip packages
+                # created through various means, and ignore any directory structure. Remove any wildcards from the
+                # required file name.
+                try:
+                    file_in_zip = next(f for f in file_list if file.replace("*", "") in f)
+                except StopIteration:
+                    raise FileNotFoundError(f"Zip package is missing: {file}")
+                zip_ref.extract(file_in_zip, temp_dir.name)
+
     def _load_components(self):
         """Load the token components."""
-        temp_dir = TemporaryDirectory()
+        temp_dir = TemporaryDirectory(suffix=f"-{self.comp_path.name}")
         if self.comp_path.is_file():
-            with zipfile.ZipFile(self.comp_path, "r") as zip_ref:
-                self.comp_path = Path(temp_dir.name)
-                zip_ref.extractall(temp_dir.name)
+            # Presume it's a zipped package
+            self._unzip_package(self.comp_path, temp_dir)
+            # Reset comp_path to the unzipped package directory
+            self.comp_path = Path(temp_dir.name) / self.comp_path.stem
+
+        # Make sure we have everything before we move forward.
+        self._verify_package()
 
         self.role_bg = Image(filename=self.comp_path / "TokenBG.png")
         self.reminder_bg = Image(filename=self.comp_path / "ReminderBG.png")

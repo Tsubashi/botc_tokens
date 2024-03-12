@@ -3,6 +3,7 @@ import argparse
 import json
 from pathlib import Path
 import sys
+from zipfile import BadZipFile
 
 from rich import print
 from rich.live import Live
@@ -136,7 +137,14 @@ def run():
     try:
         components = TokenComponents(args.components)
     except BlobError as e:
-        print(f"\n[red]Error:[/][bold] Could not load components: {str(e)}[/]")
+        print(f"\n[red]Error:[/][bold] Could not load component: {str(e)}[/]")
+        return
+    except BadZipFile:
+        print(f"\n[red]Error:[/][bold] Could not load components from '{args.components}' it does not appear to be a "
+              "valid components package.[/]")
+        return
+    except FileNotFoundError as e:
+        print(f"\n[red]Error:[/][bold] Could not load components from '{args.components}': {str(e)}")
         return
 
     # Create the tokens
