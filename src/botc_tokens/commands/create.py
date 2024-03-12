@@ -7,6 +7,7 @@ import sys
 from rich import print
 from rich.live import Live
 from wand.image import Image
+from wand.exceptions import BlobError
 
 from .. import component_path as default_component_path
 from ..helpers.progress_group import setup_progress_group
@@ -22,8 +23,8 @@ def _parse_args():
                         help='The top level directory in which to begin the search.')
     parser.add_argument('output_dir', type=str, default='tokens', nargs="?",
                         help="Name of the directory in which to output the tokens. (Default: 'tokens')")
-    parser.add_argument('--component-dir', type=str, nargs="?", default=default_component_path,
-                        help="The directory in which to find the token components files. (leaves, backgrounds, etc.)")
+    parser.add_argument('--components', type=str, nargs="?", default=default_component_path,
+                        help="The directory or zip in which to find the token components. (leaves, backgrounds, etc.)")
     parser.add_argument('--role-diameter', type=int, default=575,
                         help="The diameter (in pixels) to use for role tokens. Components will be resized to fit. "
                              "(Default: 555)")
@@ -77,7 +78,11 @@ def run():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load the component images
-    components = TokenComponents(args.component_dir)
+    try:
+        components = TokenComponents(args.components)
+    except BlobError as e:
+        print(f"\n[red]Error:[/][bold] Could not load components: {str(e)}[/]")
+        return
 
     # Create the tokens
     progress_group, overall_progress, step_progress = setup_progress_group()
