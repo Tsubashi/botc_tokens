@@ -24,7 +24,7 @@ def fit_ability_text(text, font_size, first_line_width, step):
         return img
     with Drawing() as draw:
         # Assign font details
-        draw.font = str(component_path / "TradeGothic.otf")
+        draw.font = str(component_path / "AbilityText.otf")
         draw.font_size = font_size / 0.9  # We will manipulate the font size in the loop, so start slightly larger
         draw.fill_color = Color("#000000")
         # Determine how many lines we need and how long each line needs to be.
@@ -77,11 +77,11 @@ def curved_text_to_image(text, token_type, token_diameter):
     token_diameter = int(token_diameter - (token_diameter * 0.1))  # Reduce the diameter by 10% to give a little padding
     if token_type == "reminder":
         font_size = token_diameter * 0.15
-        font_filepath = str(component_path / "OpenSans-Regular.ttf")
+        font_filepath = str(component_path / "ReminderText.ttf")
         color = "#ECEAED"
     else:
         font_size = token_diameter * 0.1
-        font_filepath = str(component_path / "Dumbledor 2 Regular.ttf")
+        font_filepath = str(component_path / "RoleName.ttf")
         color = "#000000"
         text = text.upper()
 
