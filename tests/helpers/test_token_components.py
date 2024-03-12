@@ -100,14 +100,14 @@ def test_token_components_missing_files(component_package):
     # Try to load the components
     with pytest.raises(FileNotFoundError):
         token_components = TokenComponents(component_package)
-    token_components.close()
+        token_components.close()
 
 
 def test_token_components_zipped_incomplete(zipped_incomplete_package):
     """Fail to load a zipped package with missing files."""
     with pytest.raises(FileNotFoundError):
         token_components = TokenComponents(zipped_incomplete_package)
-    token_components.close()
+        token_components.close()
 
 
 def test_token_compoents_modified_package(tmp_path, component_package):
@@ -116,4 +116,4 @@ def test_token_compoents_modified_package(tmp_path, component_package):
     (component_package / "TokenBG.png").unlink()
     with pytest.raises(FileNotFoundError):
         token_components.dump(tmp_path)
-    token_components.close()
+        token_components.close()

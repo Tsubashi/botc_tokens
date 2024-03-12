@@ -1,6 +1,6 @@
 """General configuration for tests."""
 # Standard Library
-import zipfile
+from pathlib import Path
 
 # Third Party
 import pytest
@@ -10,6 +10,12 @@ from botc_tokens.helpers.token_components import TokenComponents
 
 # Let pytest know we would like them to handle asserts in our helper code
 pytest.register_assert_rewrite("testhelpers")
+
+
+@pytest.fixture()
+def test_data_dir():
+    """Set the data directory for the tests."""
+    return Path(__file__).parent / "data"
 
 
 @pytest.fixture()
