@@ -1,15 +1,19 @@
 """Command to create token images to match json files in a directory tree."""
+# Standard Library
 import argparse
 import json
 from pathlib import Path
+import string
 import sys
 from zipfile import BadZipFile
 
+# Third Party
 from rich import print
 from rich.live import Live
 from wand.exceptions import BlobError
 from wand.image import Image
 
+# Application Specific
 from .. import component_path as default_component_path
 from ..helpers.progress_group import setup_progress_group
 from ..helpers.text_tools import curved_text_to_image, fit_ability_text, format_filename
@@ -51,7 +55,7 @@ def create_reminder_token(reminder_icon, output, reminder_text, components, diam
     reminder_icon_y = (reminder.height - reminder_icon.height - int(reminder.height * 0.15)) // 2
     reminder.composite(reminder_icon, left=reminder_icon_x, top=reminder_icon_y)
     # Add the reminder text
-    text_img = curved_text_to_image(reminder_text.title(), "reminder", reminder_icon.width, components)
+    text_img = curved_text_to_image(string.capwords(reminder_text), "reminder", reminder_icon.width, components)
     text_x = (reminder.width - text_img.width) // 2
     text_y = (reminder.height - text_img.height - int(reminder_icon.height * 0.05))
     reminder.composite(text_img, left=text_x, top=text_y)
