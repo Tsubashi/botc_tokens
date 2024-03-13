@@ -55,6 +55,7 @@ def test_group(example_script, token_dir, tmp_path):
     check_output_folder(output_path, expected_files=expected_files)
 
 
+@pytest.mark.skip("Disabled because delagate is not installed on GH Actions runner.")
 def test_paper_sizes(example_script, token_dir, tmp_path):
     """Adjust the paper size."""
     output_path = tmp_path / "output"
