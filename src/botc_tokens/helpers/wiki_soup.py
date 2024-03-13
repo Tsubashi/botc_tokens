@@ -14,10 +14,10 @@ class WikiSoup:
     def __init__(self, script_filter: str = "Experimental"):
         """Prep the reminders and wiki soup."""
         self.wiki_soups = {}
-        self.reminders = []
+        self.reminders = {}
         with open(data_dir / "known_reminders.json", "r") as f:
             self.reminders = json.load(f)
-        self.reminder_overrides = []
+        self.reminder_overrides = {}
         roles_from_web = urlopen("https://script.bloodontheclocktower.com/data/roles.json").read().decode('utf-8')
         self.role_data = json.loads(roles_from_web)
         # Filter the roles

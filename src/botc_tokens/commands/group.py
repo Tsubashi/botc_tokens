@@ -16,18 +16,24 @@ def _parse_args():
         prog="botc_tokens group",
         description='Create printable sheets based on a script json file.'
     )
-    parser.add_argument('script_json', type=str,
-                        help='the json file containing the script info.')
+    parser.add_argument('script', type=str,
+                        help='the json file or directory containing the script info.')
     parser.add_argument('--token-dir', type=str, default='tokens',
                         help="Name of the directory in which to find the token images. (Default: 'tokens')")
     parser.add_argument('-o', '--output-dir', type=str, default='printables',
                         help="Name of the directory in which to output the sheets. (Default: 'printables')")
-    parser.add_argument('--role-size', type=int, default=555,
-                        help="The radius (in pixels) of the role tokens. (Default: 555)")
-    parser.add_argument('--reminder-size', type=int, default=319,
-                        help="The radius (in pixels) of the reminder tokens. (Default: 319)")
+    parser.add_argument('--fixed-role-size', type=int, default=None,
+                        help="The radius (in pixels) to allocate per role tokens. "
+                             "(Default: The first token's largest dimension)")
+    parser.add_argument('--fixed-reminder-size', type=int, default=None,
+                        help="The radius (in pixels) to allocate per reminder tokens. "
+                             "(Default: The first token's largest dimension)")
     parser.add_argument('--padding', type=int, default=0,
                         help="The padding (in pixels) between tokens. (Default: 0)")
+    parser.add_argument('--paper-width', type=int, default=2402,
+                        help="The width (in pixels) of the paper to use for the tokens. (Default: 2402)")
+    parser.add_argument('--paper-height', type=int, default=3152,
+                        help="The height (in pixels) of the paper to use for the tokens. (Default: 3152)")
     args = parser.parse_args(sys.argv[2:])
     return args
 
@@ -46,10 +52,18 @@ def run():
         else:
             role_images.append(img_file)
 
+    if not role_images and not reminder_images:
+        print("[yellow]Warning:[/] No token images found.")
+
     # Read the script json file
-    print(f"[green]Reading {args.script_json}...[/]")
-    with open(args.script_json, "r") as f:
-        script = json.load(f)
+    print(f"[green]Reading {args.script}...[/]")
+    script_path = Path(args.script)
+    script = []
+    if script_path.is_dir():
+        script = [file.stem for file in script_path.rglob("*.png") if "Reminder" not in file.name]
+    else:
+        with open(args.script, "r") as f:
+            script = json.load(f)
 
     # Create the printable sheets
     print(f"[green]Creating sheets in {args.output_dir}...[/]", end="")
@@ -61,8 +75,22 @@ def run():
     with Live(progress_group):
         overall_progress.add_task("Creating Sheets", total=None)
         step_task = step_progress.add_task("Adding roles")
-        role_page = Printable(output_dir, "roles", padding=args.padding, diameter=args.role_size)
-        reminder_page = Printable(output_dir, "reminders", padding=args.padding, diameter=args.reminder_size)
+        role_page = Printable(
+            output_dir,
+            basename="roles",
+            page_width=args.paper_width,
+            page_height=args.paper_height,
+            padding=args.padding,
+            diameter=args.fixed_role_size
+        )
+        reminder_page = Printable(
+            output_dir,
+            basename="reminders",
+            page_width=args.paper_width,
+            page_height=args.paper_height,
+            padding=args.padding,
+            diameter=args.fixed_role_size
+        )
         for role in script:
             if isinstance(role, dict):
                 continue  # Skip metadata
@@ -72,7 +100,7 @@ def run():
             role_file = next((t for t in role_images if role_name in t.name.lower().replace("'", "")), None)
             reminder_files = (t for t in reminder_images if t.name.lower().replace("'", "").startswith(role_name))
             if not role_file:
-                print(f"[yellow]No token found for {role_name}[/]")
+                print(f"[yellow]Warning:[/] No token found for {role_name}")
                 continue
             role_page.add_token(role_file)
             for reminder in reminder_files:

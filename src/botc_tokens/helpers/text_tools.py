@@ -6,10 +6,8 @@ from wand.color import Color
 from wand.drawing import Drawing
 from wand.image import Image
 
-from .. import component_path
 
-
-def fit_ability_text(text, font_size, first_line_width, step):
+def fit_ability_text(text, font_size, first_line_width, step, components):
     """Take an ability text and fit it to a given width.
 
     Args:
@@ -17,6 +15,7 @@ def fit_ability_text(text, font_size, first_line_width, step):
         font_size (int): The size of the font to be used.
         first_line_width (int): The width of the first line of text.
         step (int): The amount to increase the line width by each time.
+        components (TokenComponents): The component package to load fonts from.
     """
     img = Image(width=1, height=1, resolution=(600, 600))
     # Make sure we have text to draw. Otherwise, just return an empty image.
@@ -24,7 +23,7 @@ def fit_ability_text(text, font_size, first_line_width, step):
         return img
     with Drawing() as draw:
         # Assign font details
-        draw.font = str(component_path / "OpenSans-Light.ttf")
+        draw.font = str(components.AbilityTextFont)
         draw.font_size = font_size / 0.9  # We will manipulate the font size in the loop, so start slightly larger
         draw.fill_color = Color("#000000")
         # Determine how many lines we need and how long each line needs to be.
@@ -66,22 +65,23 @@ def fit_ability_text(text, font_size, first_line_width, step):
     return img
 
 
-def curved_text_to_image(text, token_type, token_diameter):
+def curved_text_to_image(text, token_type, token_diameter, components):
     """Change a text string into an image with curved text.
 
     Args:
         text (str): The text to be displayed.
         token_type (str): The type of text to be displayed. Either "reminder" or "role".
         token_diameter (int): The width of the token. This is used to determine the amount of curvature.
+        components (TokenComponents): The component package to load fonts from.
     """
     token_diameter = int(token_diameter - (token_diameter * 0.1))  # Reduce the diameter by 10% to give a little padding
     if token_type == "reminder":
         font_size = token_diameter * 0.15
-        font_filepath = str(component_path / "OpenSans-Regular.ttf")
+        font_filepath = str(components.ReminderTextFont)
         color = "#ECEAED"
     else:
         font_size = token_diameter * 0.1
-        font_filepath = str(component_path / "Dumbledor 2 Regular.ttf")
+        font_filepath = str(components.RoleNameFont)
         color = "#000000"
         text = text.upper()
 
