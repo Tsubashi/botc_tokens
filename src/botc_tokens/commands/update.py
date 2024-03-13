@@ -157,6 +157,7 @@ def get_role_ability(found_role, wiki):
             found_role.ability = wiki.get_ability_text(found_role.name)
         except RuntimeError:
             print(f"[red]Error:[/] No ability found for {found_role.name}")
+            found_role.ability = ""
 
 
 def get_role_reminders(found_role, wiki):
@@ -171,3 +172,4 @@ def get_role_reminders(found_role, wiki):
             found_role.reminders = wiki.get_reminders(found_role.name)
         except RuntimeError:
             print(f"[red]Error:[/] No reminder info found for {found_role.name}")
+            found_role.reminders = []

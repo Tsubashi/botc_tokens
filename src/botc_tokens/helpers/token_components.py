@@ -1,7 +1,7 @@
 """A simple class for preloading token components."""
 # Standard Library
 from pathlib import Path
-from shutil import copy
+from shutil import copy, copyfileobj
 from tempfile import TemporaryDirectory
 import zipfile
 
@@ -52,7 +52,7 @@ class TokenComponents:
             # If it is a file, presume it's a zipped package regardless of extension
             self._unzip_package()
             # Reset comp_path to the unzipped package directory
-            self.comp_path = Path(self.temp_dir.name) / self.comp_path.stem
+            self.comp_path = Path(self.temp_dir.name)
 
         self._load_components()
 
@@ -77,7 +77,10 @@ class TokenComponents:
                     file_in_zip = next(f for f in file_list if file.replace("*", "") in f)
                 except StopIteration:
                     raise FileNotFoundError(f"Zip package is missing: {file}")
-                zip_ref.extract(file_in_zip, self.temp_dir.name)
+                source = zip_ref.open(file_in_zip)
+                target = open(Path(self.temp_dir.name) / file, "wb")
+                with source, target:
+                    copyfileobj(source, target)
 
     def _load_components(self):
         """Load the token components."""
