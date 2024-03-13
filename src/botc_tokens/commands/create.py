@@ -131,7 +131,7 @@ def run():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load the component images
-    components = load_components(args)
+    components = load_components(args.components)
     if components is None:
         return
 

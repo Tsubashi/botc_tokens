@@ -52,6 +52,9 @@ def run():
         else:
             role_images.append(img_file)
 
+    if not role_images and not reminder_images:
+        print("[yellow]Warning:[/] No token images found.")
+
     # Read the script json file
     print(f"[green]Reading {args.script_json}...[/]")
     with open(args.script_json, "r") as f:
@@ -92,7 +95,7 @@ def run():
             role_file = next((t for t in role_images if role_name in t.name.lower().replace("'", "")), None)
             reminder_files = (t for t in reminder_images if t.name.lower().replace("'", "").startswith(role_name))
             if not role_file:
-                print(f"[yellow]No token found for {role_name}[/]")
+                print(f"[yellow]Warning:[/] No token found for {role_name}")
                 continue
             role_page.add_token(role_file)
             for reminder in reminder_files:
