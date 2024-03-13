@@ -15,7 +15,7 @@ class Printable:
         """Create a new printable object.
 
         Args:
-            output_dir (str): The directory to save the pages to.
+            output_dir (str|Path): The directory to save the pages to.
             page_width (int): The width of the page in pixels.
             page_height (int): The height of the page in pixels.
             basename (str): The base name to use for the pages.

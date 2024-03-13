@@ -16,8 +16,8 @@ def _parse_args():
         prog="botc_tokens group",
         description='Create printable sheets based on a script json file.'
     )
-    parser.add_argument('script_json', type=str,
-                        help='the json file containing the script info.')
+    parser.add_argument('script', type=str,
+                        help='the json file or directory containing the script info.')
     parser.add_argument('--token-dir', type=str, default='tokens',
                         help="Name of the directory in which to find the token images. (Default: 'tokens')")
     parser.add_argument('-o', '--output-dir', type=str, default='printables',
@@ -56,9 +56,14 @@ def run():
         print("[yellow]Warning:[/] No token images found.")
 
     # Read the script json file
-    print(f"[green]Reading {args.script_json}...[/]")
-    with open(args.script_json, "r") as f:
-        script = json.load(f)
+    print(f"[green]Reading {args.script}...[/]")
+    script_path = Path(args.script)
+    script = []
+    if script_path.is_dir():
+        script = [file.stem for file in script_path.rglob("*.png") if "Reminder" not in file.name]
+    else:
+        with open(args.script, "r") as f:
+            script = json.load(f)
 
     # Create the printable sheets
     print(f"[green]Creating sheets in {args.output_dir}...[/]", end="")

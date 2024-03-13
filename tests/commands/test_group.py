@@ -108,6 +108,15 @@ def test_page_overflow(example_script, token_dir, tmp_path):
     check_output_folder(output_path, expected_files=expected_files)
 
 
+def test_script_directory(token_dir, tmp_path):
+    """Use a directory as a script."""
+    output_path = tmp_path / "output"
+    _run_cmd([str(token_dir), "--token-dir", str(token_dir), "-o", str(output_path)])
+
+    expected_files = ["roles_1.pdf", "reminders_1.pdf"]
+    check_output_folder(output_path, expected_files=expected_files)
+
+
 def test_multi_row(example_script, token_dir, tmp_path):
     """Test that the page overflow works."""
     output_path = tmp_path / "output"
