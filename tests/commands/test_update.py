@@ -104,7 +104,9 @@ def test_update_bad_json(tmp_path, capsys):
 def test_update_script_filter(tmp_path):
     """Test the script filter option."""
     output_path = tmp_path / "roles"
-    with mock.patch("sys.argv", ["botc_tokens", "update", "--output", str(output_path), "--script-filter", "99 - Ignored"]):
+    with mock.patch("sys.argv",
+                    ["botc_tokens", "update", "--output", str(output_path), "--script-filter", "99 - Ignored"]
+                    ):
         with web_mock():
             update.run()
 
@@ -155,7 +157,9 @@ def test_update_custom_reminders_file(tmp_path):
     with open(reminders_file, "w") as f:
         json.dump({"First": ["Custom reminder"]}, f)
     output_path = tmp_path / "roles"
-    with mock.patch("sys.argv", ["botc_tokens", "update", "--output", str(output_path), "--reminders", str(reminders_file)]):
+    with mock.patch("sys.argv",
+                    ["botc_tokens", "update", "--output", str(output_path), "--reminders", str(reminders_file)]
+                    ):
         with web_mock():
             update.run()
 

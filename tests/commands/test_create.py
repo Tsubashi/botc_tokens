@@ -1,17 +1,17 @@
 """Tests for the create command."""
 # Standard Library
+import json
 from pathlib import Path
 from shutil import copy
 from unittest.mock import patch
-import json
 
 # Third Party
 import pytest
+from testhelpers import check_output_folder
 from wand.image import Image
 
 # Application Specific
 from botc_tokens.commands import create
-from testhelpers import check_output_folder
 
 
 @pytest.fixture()
@@ -24,7 +24,6 @@ def input_path(test_data_dir, tmp_path):
     for i in range(1, 9):
         icon = input_folder / f"{i}.png"
         copy(test_data_dir / "icons" / f"{i}.png", icon)
-
 
         file = input_folder / f"{i}.json"
         fake_role = {
@@ -70,7 +69,7 @@ def test_no_input(tmp_path, capsys):
 
 
 def test_standard_run(input_path, default_expected_files):
-    """Run normally"""
+    """Run normally."""
     output_path = input_path.parent / "output"
     _run_cmd([str(input_path), "-o", str(output_path)])
 
@@ -122,7 +121,6 @@ def test_duplicate_reminder(input_path):
 
 def test_componets_error_handling(input_path, capsys):
     """Alert the user if there is an error loading the components."""
-
     # Try a non-existent package
     output_path = input_path.parent / "output"
     _run_cmd([str(input_path), "-o", str(output_path), "--components", "not-a-real-file"])

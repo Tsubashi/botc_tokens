@@ -20,7 +20,7 @@ def test_print_version(capsys):
     _run_main_cmd(["version"])
 
     output = capsys.readouterr()
-    expected_output = "botc_tokens, Version"  # Don't specify the exact version, so we don't have to update it every tag.
+    expected_output = "botc_tokens, Version"  # Skip the details, so it will match any version
     assert expected_output in output.out
 
 

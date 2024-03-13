@@ -1,9 +1,9 @@
 """Put the WikiSoup class through its paces."""
-import urllib
 # Standard Library
 from contextlib import contextmanager
-from unittest import mock
 from io import StringIO
+from unittest import mock
+import urllib
 
 # Third Party
 import pytest

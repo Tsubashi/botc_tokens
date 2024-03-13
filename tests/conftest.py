@@ -29,5 +29,3 @@ def component_package(tmp_path):
     dump_path = tmp_path / "dump"
     token_components.dump(dump_path)
     return dump_path
-
-

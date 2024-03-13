@@ -6,15 +6,13 @@ import zipfile
 import pytest
 
 # Application Specific
-from botc_tokens.helpers.token_components import TokenComponents
 from botc_tokens import component_path
+from botc_tokens.helpers.token_components import TokenComponents
 
 
 @pytest.fixture()
 def zipped_package(component_package):
     """Create a zipped token component package."""
-
-    # Zip up the dumped token components
     zip_path = component_package.parent / "dump.zip"
     with zipfile.ZipFile(zip_path, "w") as zip_ref:
         for file in component_package.iterdir():

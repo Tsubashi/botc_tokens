@@ -22,7 +22,7 @@ def _parse_args():
         description='Create token images to match json files in a directory tree.')
     parser.add_argument('search_dir', type=str, default="inputs", nargs="?",
                         help='The top level directory in which to begin the search.')
-    parser.add_argument('-o','--output_dir', type=str, default='tokens',
+    parser.add_argument('-o', '--output_dir', type=str, default='tokens',
                         help="Name of the directory in which to output the tokens. (Default: 'tokens')")
     parser.add_argument('--components', type=str, nargs="?", default=default_component_path,
                         help="The directory or zip in which to find the token components. (leaves, backgrounds, etc.)")
@@ -124,30 +124,15 @@ def run():
     if len(json_files) == 0:
         print("[red]Error: [/][bold]No JSON files found in the search directory.[/]")
         return
-    roles = []
     print("[green]Finding Roles...[/]")
-    for json_file in json_files:
-        with open(json_file, "r") as f:
-            data = json.load(f)
-        # Rewrite the icon path to be relative to our working directory
-        data['icon'] = str(json_file.parent / data.get('icon'))
-        roles.append(data)
+    roles = find_roles_from_json(json_files)
     print(f"[green]Creating tokens in {args.output_dir}...[/]", end="")
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load the component images
-    try:
-        components = TokenComponents(args.components)
-    except BlobError as e:
-        print(f"\n[red]Error:[/][bold] Could not load component: {str(e)}[/]")
-        return
-    except BadZipFile:
-        print(f"\n[red]Error:[/][bold] Could not load components from '{args.components}' it does not appear to be a "
-              "valid components package.[/]")
-        return
-    except FileNotFoundError as e:
-        print(f"\n[red]Error:[/][bold] Unable to load components from '{args.components}': {str(e)}")
+    components = load_components(args)
+    if components is None:
         return
 
     # Create the tokens
@@ -198,3 +183,32 @@ def run():
 
     # Close the component images
     components.close()
+
+
+def load_components(component_package):
+    """Handle loading the components from a directory or zip file, and alerting the user if it fails."""
+    try:
+        components = TokenComponents(component_package)
+    except BlobError as e:
+        print(f"\n[red]Error:[/][bold] Could not load component: {str(e)}[/]")
+        return None
+    except BadZipFile:
+        print(f"\n[red]Error:[/][bold] Could not load components from '{component_package}' it does not appear to be a "
+              "valid components package.[/]")
+        return None
+    except FileNotFoundError as e:
+        print(f"\n[red]Error:[/][bold] Unable to load components from '{component_package}': {str(e)}")
+        return None
+    return components
+
+
+def find_roles_from_json(json_files):
+    """Load each json file and return the roles."""
+    roles = []
+    for json_file in json_files:
+        with open(json_file, "r") as f:
+            data = json.load(f)
+        # Rewrite the icon path to be relative to our working directory
+        data['icon'] = str(json_file.parent / data.get('icon'))
+        roles.append(data)
+    return roles

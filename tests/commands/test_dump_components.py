@@ -8,7 +8,6 @@ from unittest.mock import patch
 from botc_tokens.commands import dump_components
 
 
-
 def _run_cmd(arg_list):
     argv_patch = ["botc_tokens", "dump-components"]
     argv_patch.extend(arg_list)
