@@ -1,17 +1,24 @@
 #!/usr/bin/env python
 # coding: utf-8
 """Download story from the requested url."""
+# Standard library
 import argparse
 from dataclasses import asdict
 import json
 from pathlib import Path
 import sys
+from urllib.error import HTTPError
 import urllib.parse
-from urllib.request import urlretrieve
+from urllib.request import urlopen
 
+
+# Third-party libraries
 from rich import print
 from rich.live import Live
+from wand.color import Color
+from wand.image import Image
 
+# Application specific
 from ..helpers.progress_group import setup_progress_group
 from ..helpers.role import Role
 from ..helpers.text_tools import format_filename
@@ -135,14 +142,25 @@ def get_role_icon(found_role, role_output_path, wiki):
     """
     try:
         icon_url = wiki.get_big_icon_url(found_role.name)
-        icon_url = urllib.parse.urljoin("https://wiki.bloodontheclocktower.com", icon_url)
-        icon_path = role_output_path / f"{format_filename(found_role.name)}{Path(icon_url).suffix}"
-        icon_path.parent.mkdir(parents=True, exist_ok=True)
-        if not icon_path.exists():
-            urlretrieve(icon_url, icon_path)
-        found_role.icon = str(icon_path.name)
-    except RuntimeError:
-        print(f"[red]Error:[/] No icon found for {found_role.name}")
+    except RuntimeError as e:
+        print(f"[red]Error:[/] No icon found for {found_role.name}: {str(e)}")
+        return
+    icon_url = urllib.parse.urljoin("https://wiki.bloodontheclocktower.com", icon_url)
+    icon_path = role_output_path / f"{format_filename(found_role.name)}{Path(icon_url).suffix}"
+    icon_path.parent.mkdir(parents=True, exist_ok=True)
+    if not icon_path.exists():
+        # Load the image from the web
+        try:
+            image_bits = urlopen(icon_url).read()
+        except HTTPError as e:
+            print(f"[red]Error:[/] Unable to download icon for {found_role.name}: {str(e)}")
+            return
+        # Parse the image
+        with Image(blob=image_bits) as img:
+            # Remove the extra space around the icon
+            img.trim(color=Color('rgba(0,0,0,0)'), fuzz=0)
+            img.save(filename=str(icon_path))
+    found_role.icon = str(icon_path.name)
 
 
 def get_role_ability(found_role, wiki):
