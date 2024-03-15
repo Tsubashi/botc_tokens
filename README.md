@@ -4,7 +4,8 @@ A simple fan-made utility to help create custom tokens for the game Blood on the
 ![An example of tokens made by this utility](https://raw.githubusercontent.com/Tsubashi/botc_tokens-Examples/stable/example.jpg)
 
 ## Installation
-To use this tool, you will need to have Python 3 installed on your computer. You can download it from the [official website](https://www.python.org/downloads/).
+To use this tool, you will need to have Python 3 installed on your computer. You can download it from the
+[official website](https://www.python.org/downloads/).
 
 Once you have Python installed, you can install these scripts using `pip`:
 ```bash
@@ -21,15 +22,13 @@ We use [Wand](https://docs.wand-py.org/en/0.6.13/) to handle image manipulation,
 that set up.
 
 ## Usage
-The main script is run through its entrypoint `botc_tokens`. You can use the `--help` flag to see the available 
-commands and options.
+**For a full walkthrough and for more component packages, see the 
+[example repository](https://github.com/Tsubashi/botc_tokens-Examples).**
 
-For a full walkthrough and for more component packages, see the 
-[example repository](https://github.com/Tsubashi/botc_tokens-Examples).
-
-A full workflow would use the `update` command to download the latest assets from the web, and then the `create` 
-command to generate the tokens, followed by a `group` command to organize them into a single printable sheet using a 
-json file from the [official script tool](https://script.bloodontheclocktower.com/).
+The main script is run through its entrypoint `botc_tokens`. For example, you might use the `update` command to download
+the latest assets from the web, and then the `create` command to generate the tokens, followed by a `group` command to 
+organize them into a single printable sheet using a json file from the [official script tool](https://script.bloodontheclocktower.com/). 
+You can use the `--help` flag to see the available commands and options.
 
 ### Updating from the web
 If you want to create experimental tokens for your in-person games, you can use the `update` command to download the
