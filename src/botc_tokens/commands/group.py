@@ -98,7 +98,7 @@ def run():
             page_width=args.paper_width,
             page_height=args.paper_height,
             padding=args.padding,
-            diameter=args.fixed_role_size
+            diameter=args.fixed_reminder_size
         )
         for role in script:
             if isinstance(role, dict):

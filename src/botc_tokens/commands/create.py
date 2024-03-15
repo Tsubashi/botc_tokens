@@ -27,7 +27,7 @@ def _parse_args():
     parser.add_argument('search_dir', type=str, default="inputs", nargs="?",
                         help='The top level directory in which to begin the search.')
     output_dir_default = 'tokens'
-    parser.add_argument('-o', '--output_dir', type=str, default=output_dir_default,
+    parser.add_argument('-o', '--output-dir', type=str, default=output_dir_default,
                         help=f"Name of the directory in which to output the tokens. (Default: {output_dir_default})")
     parser.add_argument('--components', type=str, default=default_component_path,
                         help="The directory or zip in which to find the token components. (leaves, backgrounds, etc.)")

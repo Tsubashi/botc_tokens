@@ -56,7 +56,7 @@ def test_group(example_script, token_dir, tmp_path):
     check_output_folder(output_path, expected_files=expected_files)
 
 
-@pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="Required delegate is not installed on GH Actions runner.")
+@pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="Required delegate is not installed in GH Actions.")
 def test_paper_sizes(example_script, token_dir, tmp_path):
     """Adjust the paper size."""
     output_path = tmp_path / "output"
