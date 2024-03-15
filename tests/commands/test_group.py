@@ -102,10 +102,11 @@ def test_page_overflow(example_script, token_dir, tmp_path):
         "--paper-width", "256",
         "--paper-height", "128",
         "--padding", "0",
-        "--fixed-role-size", "128"
+        "--fixed-role-size", "128",
+        "--fixed-reminder-size", "256"
     ])
 
-    expected_files = ["roles_1.pdf", "roles_2.pdf", "reminders_1.pdf", "reminders_2.pdf"]
+    expected_files = ["roles_1.pdf", "roles_2.pdf", "reminders_1.pdf", "reminders_2.pdf", "reminders_3.pdf"]
     check_output_folder(output_path, expected_files=expected_files)
 
 
