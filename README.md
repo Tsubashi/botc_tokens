@@ -23,7 +23,11 @@ that set up.
 ## Usage
 The main script is run through its entrypoint `botc_tokens`. You can use the `--help` flag to see the available 
 commands and options.
-A typical workflow would use the `update` command to download the latest assets from the web, and then the `create` 
+
+For a full walkthrough and for more component packages, see the 
+[example repository](https://github.com/Tsubashi/botc_tokens-Examples).
+
+A full workflow would use the `update` command to download the latest assets from the web, and then the `create` 
 command to generate the tokens, followed by a `group` command to organize them into a single printable sheet using a 
 json file from the [official script tool](https://script.bloodontheclocktower.com/).
 
@@ -44,13 +48,14 @@ command to generate the tokens. This will create a folder with the role name and
 would like to customize the appearance of the tokens, you can use the `--component-dir` option to specify where to
 find your custom components. Check the `example` folder for an example of the expected structure.
 ```bash
-botc_tokens create /path/to/inputs /path/to/tokens --component-dir /path/to/components
+botc_tokens create /path/to/inputs -o /path/to/tokens --components /path/to/components
 ```
 
 ### Grouping tokens
 Once you have created your token images, you can use the `group` command to organize the tokens into a single 
-printable sheet. This command requires a JSON file with desired role grouping, which can be created using the
-[official script tool](https://script.bloodontheclocktower.com/).
+printable sheet. This command can take a directory or a JSON file with desired role grouping, which follows the
+formatting of the [official script tool](https://script.bloodontheclocktower.com/).
+
 ```bash
 botc_tokens group /path/to/script.json --token-dir /path/to/tokens --output-dir /path/to/printables
 ```
