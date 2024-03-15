@@ -35,8 +35,8 @@ If you want to create experimental tokens for your in-person games, you can use 
 current list from the [official wiki](https://wiki.bloodontheclocktower.com/). This is an incremental update, so it 
 will only download assets that are not already present in the local folder. We highly recommend double-checking the
 resulting entries, especially the reminder token section. While the utility does its best to guess, it isn't perfect.
-If you already know the reminder tokens, you can create a JSON file for the utility to use. See the example folder for
-an example of the format.
+If you already know the reminder tokens, you can create a JSON file for the utility to use. See the 
+[example repository](https://github.com/Tsubashi/botc_tokens-Examples) for an example of the format.
 ```bash
 botc_tokens update --output-dir /path/to/inputs --reminders /path/to/reminders.json
 ```
@@ -45,7 +45,8 @@ botc_tokens update --output-dir /path/to/inputs --reminders /path/to/reminders.j
 Once you have your role info, whether from the `update` command or from your own creation, you can use the `create`
 command to generate the tokens. This will create a folder with the role name and a subfolder for each token type. If you
 would like to customize the appearance of the tokens, you can use the `--component-dir` option to specify where to
-find your custom components. Check the `example` folder for an example of the expected structure.
+find your custom components. Check the [example repository](https://github.com/Tsubashi/botc_tokens-Examples) 
+for an example of the expected structure.
 ```bash
 botc_tokens create /path/to/inputs -o /path/to/tokens --components /path/to/components
 ```
