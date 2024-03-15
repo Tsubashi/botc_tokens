@@ -1,6 +1,7 @@
 """Tests for the group command."""
 # Standard Library
 import json
+import os
 from shutil import copy
 from unittest.mock import patch
 
@@ -55,7 +56,7 @@ def test_group(example_script, token_dir, tmp_path):
     check_output_folder(output_path, expected_files=expected_files)
 
 
-@pytest.mark.skip("Disabled because delagate is not installed on GH Actions runner.")
+@pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="Required delegate is not installed in GH Actions.")
 def test_paper_sizes(example_script, token_dir, tmp_path):
     """Adjust the paper size."""
     output_path = tmp_path / "output"
@@ -101,10 +102,11 @@ def test_page_overflow(example_script, token_dir, tmp_path):
         "--paper-width", "256",
         "--paper-height", "128",
         "--padding", "0",
-        "--fixed-role-size", "128"
+        "--fixed-role-size", "128",
+        "--fixed-reminder-size", "256"
     ])
 
-    expected_files = ["roles_1.pdf", "roles_2.pdf", "reminders_1.pdf", "reminders_2.pdf"]
+    expected_files = ["roles_1.pdf", "roles_2.pdf", "reminders_1.pdf", "reminders_2.pdf", "reminders_3.pdf"]
     check_output_folder(output_path, expected_files=expected_files)
 
 

@@ -4,7 +4,8 @@ A simple fan-made utility to help create custom tokens for the game Blood on the
 ![An example of tokens made by this utility](https://raw.githubusercontent.com/Tsubashi/botc_tokens-Examples/stable/example.jpg)
 
 ## Installation
-To use this tool, you will need to have Python 3 installed on your computer. You can download it from the [official website](https://www.python.org/downloads/).
+To use this tool, you will need to have Python 3 installed on your computer. You can download it from the
+[official website](https://www.python.org/downloads/).
 
 Once you have Python installed, you can install these scripts using `pip`:
 ```bash
@@ -21,19 +22,21 @@ We use [Wand](https://docs.wand-py.org/en/0.6.13/) to handle image manipulation,
 that set up.
 
 ## Usage
-The main script is run through its entrypoint `botc_tokens`. You can use the `--help` flag to see the available 
-commands and options.
-A typical workflow would use the `update` command to download the latest assets from the web, and then the `create` 
-command to generate the tokens, followed by a `group` command to organize them into a single printable sheet using a 
-json file from the [official script tool](https://script.bloodontheclocktower.com/).
+**For a full walkthrough and for more component packages, see the 
+[example repository](https://github.com/Tsubashi/botc_tokens-Examples).**
+
+The main script is run through its entrypoint `botc_tokens`. For example, you might use the `update` command to download
+the latest assets from the web, and then the `create` command to generate the tokens, followed by a `group` command to 
+organize them into a single printable sheet using a json file from the [official script tool](https://script.bloodontheclocktower.com/). 
+You can use the `--help` flag to see the available commands and options.
 
 ### Updating from the web
 If you want to create experimental tokens for your in-person games, you can use the `update` command to download the
 current list from the [official wiki](https://wiki.bloodontheclocktower.com/). This is an incremental update, so it 
 will only download assets that are not already present in the local folder. We highly recommend double-checking the
 resulting entries, especially the reminder token section. While the utility does its best to guess, it isn't perfect.
-If you already know the reminder tokens, you can create a JSON file for the utility to use. See the example folder for
-an example of the format.
+If you already know the reminder tokens, you can create a JSON file for the utility to use. See the 
+[example repository](https://github.com/Tsubashi/botc_tokens-Examples) for an example of the format.
 ```bash
 botc_tokens update --output-dir /path/to/inputs --reminders /path/to/reminders.json
 ```
@@ -42,15 +45,17 @@ botc_tokens update --output-dir /path/to/inputs --reminders /path/to/reminders.j
 Once you have your role info, whether from the `update` command or from your own creation, you can use the `create`
 command to generate the tokens. This will create a folder with the role name and a subfolder for each token type. If you
 would like to customize the appearance of the tokens, you can use the `--component-dir` option to specify where to
-find your custom components. Check the `example` folder for an example of the expected structure.
+find your custom components. Check the [example repository](https://github.com/Tsubashi/botc_tokens-Examples) 
+for an example of the expected structure.
 ```bash
-botc_tokens create /path/to/inputs /path/to/tokens --component-dir /path/to/components
+botc_tokens create /path/to/inputs -o /path/to/tokens --components /path/to/components
 ```
 
 ### Grouping tokens
 Once you have created your token images, you can use the `group` command to organize the tokens into a single 
-printable sheet. This command requires a JSON file with desired role grouping, which can be created using the
-[official script tool](https://script.bloodontheclocktower.com/).
+printable sheet. This command can take a directory or a JSON file with desired role grouping, which follows the
+formatting of the [official script tool](https://script.bloodontheclocktower.com/).
+
 ```bash
 botc_tokens group /path/to/script.json --token-dir /path/to/tokens --output-dir /path/to/printables
 ```
