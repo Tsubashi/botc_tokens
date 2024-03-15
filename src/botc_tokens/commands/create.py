@@ -26,16 +26,19 @@ def _parse_args():
         description='Create token images to match json files in a directory tree.')
     parser.add_argument('search_dir', type=str, default="inputs", nargs="?",
                         help='The top level directory in which to begin the search.')
-    parser.add_argument('-o', '--output_dir', type=str, default='tokens',
-                        help="Name of the directory in which to output the tokens. (Default: 'tokens')")
-    parser.add_argument('--components', type=str, nargs="?", default=default_component_path,
+    output_dir_default = 'tokens'
+    parser.add_argument('-o', '--output_dir', type=str, default=output_dir_default,
+                        help=f"Name of the directory in which to output the tokens. (Default: {output_dir_default})")
+    parser.add_argument('--components', type=str, default=default_component_path,
                         help="The directory or zip in which to find the token components. (leaves, backgrounds, etc.)")
-    parser.add_argument('--role-diameter', type=int, default=575,
+    role_diameter_default = 575
+    parser.add_argument('--role-diameter', type=int, default=role_diameter_default,
                         help="The diameter (in pixels) to use for role tokens. Components will be resized to fit. "
-                             "(Default: 555)")
-    parser.add_argument('--reminder-diameter', type=int, default=325,
+                             f"(Default: {role_diameter_default})")
+    reminder_diameter_default = 325
+    parser.add_argument('--reminder-diameter', type=int, default=reminder_diameter_default,
                         help="The diameter (in pixels) to use for reminder tokens. Components will be resized to fit. "
-                             "(Default: 319)")
+                             f"(Default: {reminder_diameter_default})")
     args = parser.parse_args(sys.argv[2:])
     return args
 

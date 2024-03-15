@@ -1,6 +1,7 @@
 """Tests for the group command."""
 # Standard Library
 import json
+import os
 from shutil import copy
 from unittest.mock import patch
 
@@ -55,7 +56,7 @@ def test_group(example_script, token_dir, tmp_path):
     check_output_folder(output_path, expected_files=expected_files)
 
 
-@pytest.mark.skip("Disabled because delagate is not installed on GH Actions runner.")
+@pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="Required delegate is not installed on GH Actions runner.")
 def test_paper_sizes(example_script, token_dir, tmp_path):
     """Adjust the paper size."""
     output_path = tmp_path / "output"

@@ -18,22 +18,30 @@ def _parse_args():
     )
     parser.add_argument('script', type=str,
                         help='the json file or directory containing the script info.')
-    parser.add_argument('--token-dir', type=str, default='tokens',
-                        help="Name of the directory in which to find the token images. (Default: 'tokens')")
-    parser.add_argument('-o', '--output-dir', type=str, default='printables',
-                        help="Name of the directory in which to output the sheets. (Default: 'printables')")
+    token_dir_default = 'tokens'
+    parser.add_argument('--token-dir', type=str, default=token_dir_default,
+                        help="Name of the directory in which to find the token images. Ignored if script is a "
+                             f"directory. (Default: {token_dir_default})")
+    output_dir_default = 'printables'
+    parser.add_argument('-o', '--output-dir', type=str, default=output_dir_default,
+                        help=f"Name of the directory in which to output the sheets. (Default: {output_dir_default})")
     parser.add_argument('--fixed-role-size', type=int, default=None,
                         help="The radius (in pixels) to allocate per role tokens. "
                              "(Default: The first token's largest dimension)")
     parser.add_argument('--fixed-reminder-size', type=int, default=None,
                         help="The radius (in pixels) to allocate per reminder tokens. "
                              "(Default: The first token's largest dimension)")
-    parser.add_argument('--padding', type=int, default=0,
-                        help="The padding (in pixels) between tokens. (Default: 0)")
-    parser.add_argument('--paper-width', type=int, default=2402,
-                        help="The width (in pixels) of the paper to use for the tokens. (Default: 2402)")
-    parser.add_argument('--paper-height', type=int, default=3152,
-                        help="The height (in pixels) of the paper to use for the tokens. (Default: 3152)")
+    padding_default = 0
+    parser.add_argument('--padding', type=int, default=padding_default,
+                        help=f"The padding (in pixels) between tokens. (Default: {padding_default})")
+    paper_width_default = 2402
+    parser.add_argument('--paper-width', type=int, default=paper_width_default,
+                        help="The width (in pixels) of the paper to use for the tokens. "
+                             f"(Default: {paper_width_default})")
+    paper_height_default = 3152
+    parser.add_argument('--paper-height', type=int, default=paper_height_default,
+                        help="The height (in pixels) of the paper to use for the tokens. "
+                             f"(Default: {paper_height_default})")
     args = parser.parse_args(sys.argv[2:])
     return args
 
@@ -61,6 +69,7 @@ def run():
     script = []
     if script_path.is_dir():
         script = [file.stem for file in script_path.rglob("*.png") if "Reminder" not in file.name]
+        args.token_dir = str(script_path)
     else:
         with open(args.script, "r") as f:
             script = json.load(f)
