@@ -1,15 +1,19 @@
 """Command to create token images to match json files in a directory tree."""
+# Standard Library
 import argparse
 import json
 from pathlib import Path
+import string
 import sys
 from zipfile import BadZipFile
 
+# Third Party
 from rich import print
 from rich.live import Live
 from wand.exceptions import BlobError
 from wand.image import Image
 
+# Application Specific
 from .. import component_path as default_component_path
 from ..helpers.progress_group import setup_progress_group
 from ..helpers.text_tools import curved_text_to_image, fit_ability_text, format_filename
@@ -51,7 +55,7 @@ def create_reminder_token(reminder_icon, output, reminder_text, components, diam
     reminder_icon_y = (reminder.height - reminder_icon.height - int(reminder.height * 0.15)) // 2
     reminder.composite(reminder_icon, left=reminder_icon_x, top=reminder_icon_y)
     # Add the reminder text
-    text_img = curved_text_to_image(reminder_text.title(), "reminder", reminder_icon.width, components)
+    text_img = curved_text_to_image(string.capwords(reminder_text), "reminder", reminder.width, components)
     text_x = (reminder.width - text_img.width) // 2
     text_y = (reminder.height - text_img.height - int(reminder_icon.height * 0.05))
     reminder.composite(text_img, left=text_x, top=text_y)
@@ -81,7 +85,7 @@ def create_role_token(token_icon, role, components, output, diameter):
         token.composite(leaf, left=0, top=0)
     # Determine where to place the icon
     icon_x = (token.width - token_icon.width) // 2
-    icon_y = (token.height - token_icon.height + int(token.height * 0.22)) // 2
+    icon_y = (token.height - token_icon.height + int(token.height * 0.15)) // 2
     token.composite(token_icon, left=icon_x, top=icon_y)
     token_icon.close()
     # Check for modifiers
@@ -156,7 +160,10 @@ def run():
             # Create the reminder tokens
             icon = Image(filename=role['icon'])
             reminder_icon = icon.clone()
-            reminder_icon.transform(resize=f"{components.reminder_bg.width}x{components.reminder_bg.height}>")
+            # The ">" modifier will only shrink the image if it is larger than the specified size.
+            max_width = components.reminder_bg.width * 0.8
+            max_height = components.reminder_bg.height * 0.75
+            reminder_icon.transform(resize=f"{max_width}x{max_height}>")
             for reminder_text in role['reminders']:
                 step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
                 reminder_name = f"{role['name']}-Reminder-{format_filename(reminder_text)}"
@@ -174,7 +181,10 @@ def run():
             # Composite the various pieces of the token.
             step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
             token_icon = icon.clone()
-            token_icon.transform(resize=f"{components.role_bg.width * 0.7}x{components.role_bg.height * 0.7}^")
+            # The "^" modifier means this transform specifies the minimum height and width.
+            token_icon.transform(resize=f"{components.role_bg.width * 0.65}x{components.role_bg.height * 0.5}^")
+            # This transform without a modifier specifies the maximum height and width.
+            token_icon.transform(resize=f"{components.role_bg.width * 0.65}x{components.role_bg.height * 0.5}")
 
             create_role_token(token_icon, role, components, token_output_path, args.role_diameter)
 

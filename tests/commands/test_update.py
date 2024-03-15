@@ -16,15 +16,21 @@ from botc_tokens.commands import update
 def web_mock():
     """Mock out actual web access."""
     # First create the return data we would expect from the web, in the order we expect it.
-    urlopen_read_mock = mock.MagicMock()
-    urlopen_read_mock.read.side_effect = webmock_list
+    wiki_read_mock = mock.MagicMock()
+    wiki_read_mock.read.side_effect = webmock_list
+    image_read_mock = mock.MagicMock()
+    image_read_mock.read.return_value = (Path(__file__).parent.parent / "data" / "icons" / "1.png").read_bytes()
 
     # Now mock out all the web calls to instead return the data we created
-    with mock.patch("botc_tokens.helpers.wiki_soup.urlopen") as urlopen_mock:
-        urlopen_mock.return_value.__enter__.return_value.read = urlopen_read_mock
-        urlopen_mock.return_value = urlopen_read_mock
+    with mock.patch("botc_tokens.helpers.wiki_soup.urlopen") as wiki_soup_urlopen_mock:
+        wiki_soup_urlopen_mock.return_value.__enter__.return_value.read = wiki_read_mock
+        wiki_soup_urlopen_mock.return_value = wiki_read_mock
         # Make sure to patch out urlretrieve, as we don't want to actually download the images
-        with mock.patch("botc_tokens.commands.update.urlretrieve"):
+        with mock.patch("botc_tokens.commands.update.urlopen") as update_urlopen_mock:
+            update_urlopen_mock.return_value.__enter__.return_value.read = image_read_mock
+            update_urlopen_mock.return_value = image_read_mock
+            fake_image = Path(__file__).parent.parent / "data" / "icons" / "1.png"
+            update_urlopen_mock.read.return_value = fake_image.read_bytes()
             yield
 
 
@@ -48,7 +54,9 @@ def test_update_command(tmp_path):
     # Verify that it worked
     expected_files = [
         str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
         str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files, check_func=check_expected_json)
 
@@ -68,7 +76,9 @@ def test_update_existing_folder(tmp_path):
     # Verify that it worked
     expected_files = [
         str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
         str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files, check_func=check_expected_json)
 
@@ -89,6 +99,7 @@ def test_update_bad_json(tmp_path, capsys):
     expected_files = [
         str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
         str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -113,6 +124,7 @@ def test_update_script_filter(tmp_path):
     # Verify that it worked
     expected_files = [
         str(Path("99 - Ignored") / "outsider" / "Third.json"),
+        str(Path("99 - Ignored") / "outsider" / "Third.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -147,6 +159,7 @@ def test_update_icon_already_exists(tmp_path):
         str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
         str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
         str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -166,7 +179,9 @@ def test_update_custom_reminders_file(tmp_path):
     # Verify that it worked
     expected_files = [
         str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
         str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
     with open(output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json", "r") as f:
@@ -197,5 +212,6 @@ def test_update_existing_icon_and_json(tmp_path):
         str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
         str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
         str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
