@@ -38,6 +38,20 @@ def input_path(test_data_dir, tmp_path):
             "home_script": "999 - Tests"
         }
         file.write_text(json.dumps(fake_role))
+    # Add a role with a space in the name
+    file = input_folder / "Space Role.json"
+    fake_role = {
+        "name": "Space Role",
+        "ability": "Ability 10",
+        "type": "Not-In-Play",
+        "icon": "1.png",
+        "first_night": False,
+        "other_nights": False,
+        "reminders": ["This has spaces"],
+        "affects_setup": False,
+        "home_script": "999 - Tests"
+    }
+    file.write_text(json.dumps(fake_role))
 
     return input_folder
 
@@ -49,6 +63,9 @@ def default_expected_files():
     for i in range(1, 9):
         expected_files.append(str(Path("999 - Tests") / "Not-In-Play" / f"{i}.png"))
         expected_files.append(str(Path("999 - Tests") / "Not-In-Play" / f"{i}-Reminder-Reminder_{i}.png"))
+    # Add the space role
+    expected_files.append(str(Path("999 - Tests") / "Not-In-Play" / "Space_Role.png"))
+    expected_files.append(str(Path("999 - Tests") / "Not-In-Play" / "Space_Role-Reminder-This_has_spaces.png"))
     return expected_files
 
 

@@ -44,7 +44,7 @@ def _run_cmd(arg_list):
     argv_patch.extend(arg_list)
 
     with patch("sys.argv", argv_patch):
-        group.run()
+        return group.run()
 
 
 def test_group(example_script, token_dir, tmp_path):
@@ -134,3 +134,31 @@ def test_multi_row(example_script, token_dir, tmp_path):
 
     expected_files = ["roles_1.pdf", "reminders_1.pdf"]
     check_output_folder(output_path, expected_files=expected_files)
+
+
+def test_no_input(tmp_path, capsys):
+    """Alert the user if the input doesn't exist."""
+    assert _run_cmd([str(tmp_path / "Not-a-real-file.json")]) == 1
+    output = capsys.readouterr()
+    assert ("Unable to load script" in output.out)
+
+
+def test_script_dir(token_dir, tmp_path):
+    """Use a directory for the script argument."""
+    output_path = tmp_path / "output"
+    _run_cmd([str(token_dir), "-o", str(output_path)])
+
+    expected_files = ["roles_1.pdf", "reminders_1.pdf"]
+    check_output_folder(output_path, expected_files=expected_files)
+
+
+def test_reminders_with_spaces(token_dir, tmp_path, test_data_dir):
+    """Test for issue #5."""
+    output_path = tmp_path / "output"
+    icon = test_data_dir / "icons" / "1.png"
+    copy(icon, token_dir / "role_with_spaces.png")
+    copy(icon, token_dir / "role_with_spaces-Reminder-This_has_spaces.png")
+    with patch("botc_tokens.commands.group.Printable") as printable_mock:
+        _run_cmd([str(token_dir), "-o", str(output_path)])
+        printable_mock().add_token.assert_any_call(token_dir / "role_with_spaces.png")
+        printable_mock().add_token.assert_any_call(token_dir / "role_with_spaces-Reminder-This_has_spaces.png")

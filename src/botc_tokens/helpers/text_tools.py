@@ -40,6 +40,7 @@ def fit_ability_text(text, font_size, first_line_width, step, components):
             max_height = 0
             draw.font_size = draw.font_size * 0.9
             while len(text) > 0:
+                # Find the longest line that fits within the target width
                 metrics = draw.get_font_metrics(img, line_text)
                 while metrics.text_width > target_width:
                     line_text = " ".join(line_text.split(" ")[:-1])
