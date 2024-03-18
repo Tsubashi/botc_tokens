@@ -1,15 +1,18 @@
 """Tests for the update command."""
 # Standard Library
 from contextlib import contextmanager
+from io import StringIO
 import json
 from pathlib import Path
 from unittest import mock
+from urllib.error import HTTPError
 
 # Third Party
 from testhelpers import check_output_folder, expected_role_json, webmock_list
 
 # Application Specific
 from botc_tokens.commands import update
+from botc_tokens.helpers.role import Role
 
 
 @contextmanager
@@ -215,3 +218,20 @@ def test_update_existing_icon_and_json(tmp_path):
         str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
+
+
+def test_web_error_getting_icon(tmp_path, capsys):
+    """Alert the user if we fail to get the icon."""
+    output_path = tmp_path / "roles"
+    wiki = mock.MagicMock()
+    wiki.get_big_icon_url.return_value = "First.png"
+    found_role = Role(name="First")
+    with mock.patch("botc_tokens.commands.update.urlopen") as urlopen_mock:
+        image_read_mock = mock.MagicMock()
+        fp = StringIO()  # This is necessary to avoid an issue when deconstructing urllib.error.HTTPError
+        image_read_mock.read.side_effect = HTTPError("First.png", 404, "Failed to get icon", "hdrs", fp)
+        urlopen_mock.return_value.__enter__.return_value.read = image_read_mock
+        urlopen_mock.return_value = image_read_mock
+        update.get_role_icon(found_role, output_path, wiki)
+    output = capsys.readouterr()
+    assert "Unable to download icon" in output.out
