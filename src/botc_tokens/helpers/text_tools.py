@@ -40,6 +40,7 @@ def fit_ability_text(text, font_size, first_line_width, step, components):
             max_height = 0
             draw.font_size = draw.font_size * 0.9
             while len(text) > 0:
+                # Find the longest line that fits within the target width
                 metrics = draw.get_font_metrics(img, line_text)
                 while metrics.text_width > target_width:
                     line_text = " ".join(line_text.split(" ")[:-1])
@@ -74,6 +75,12 @@ def curved_text_to_image(text, token_type, token_diameter, components):
         token_diameter (int): The width of the token. This is used to determine the amount of curvature.
         components (TokenComponents): The component package to load fonts from.
     """
+    # Make sure we have text to draw. Otherwise, just return an empty image.
+    img = Image(width=1, height=1, resolution=(600, 600))
+    if text == "":
+        return img
+
+    # Set up the font and color based on the token type
     token_diameter = int(token_diameter - (token_diameter * 0.1))  # Reduce the diameter by 10% to give a little padding
     if token_type == "reminder":
         font_size = token_diameter * 0.15
@@ -85,10 +92,7 @@ def curved_text_to_image(text, token_type, token_diameter, components):
         color = "#000000"
         text = text.upper()
 
-    img = Image(width=1, height=1, resolution=(600, 600))
-    # Make sure we have text to draw. Otherwise, just return an empty image.
-    if text == "":
-        return img
+    # Create the image
     with Drawing() as draw:
         # Assign font details
         draw.font = font_filepath

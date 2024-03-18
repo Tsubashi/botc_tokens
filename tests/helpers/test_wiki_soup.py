@@ -152,3 +152,12 @@ def test_wiki_soup_reminder_overrides():
         wiki_soup.reminder_overrides["First"] = ["OVERRIDE REMINDER"]
         reminders = wiki_soup.get_reminders("First")
         assert reminders == ["OVERRIDE REMINDER"]
+
+
+def test_disallowed_reminders():
+    """Don't filter out disallowed reminders if they come from the user's reminder file."""
+    with web_mock():
+        wiki_soup = WikiSoup()
+        wiki_soup.reminders["First"] = ["YOU ARE"]
+        reminders = wiki_soup.get_reminders("First")
+        assert reminders == ["YOU ARE"]

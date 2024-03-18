@@ -39,4 +39,4 @@ jobs:
         sudo sed -i 's/^.*policy.*coder.*none.*PDF.*//' /etc/ImageMagick-6/policy.xml
     - name: Test with pytest
       run: |
-        pytest
+        pytest --cov-fail-under=99

@@ -49,6 +49,22 @@ def _parse_args():
 def run():
     """Create printable sheets based on a script json file."""
     args = _parse_args()
+    # Ensure the script file/directory exists
+    script_path = Path(args.script)
+    if not script_path.exists():
+        print(f"[red]Error:[/] Unable to load script {args.script}")
+        return 1
+
+    # Read the script json file
+    print(f"[green]Reading {args.script}...[/]")
+    script = []
+    if script_path.is_dir():
+        script = [file.stem for file in script_path.rglob("*.png") if "Reminder" not in file.name]
+        args.token_dir = str(script_path)
+    else:
+        with open(args.script, "r") as f:
+            script = json.load(f)
+
     # Find all the token images
     token_files = Path(args.token_dir).rglob("*.png")
     role_images = []
@@ -62,17 +78,6 @@ def run():
 
     if not role_images and not reminder_images:
         print("[yellow]Warning:[/] No token images found.")
-
-    # Read the script json file
-    print(f"[green]Reading {args.script}...[/]")
-    script_path = Path(args.script)
-    script = []
-    if script_path.is_dir():
-        script = [file.stem for file in script_path.rglob("*.png") if "Reminder" not in file.name]
-        args.token_dir = str(script_path)
-    else:
-        with open(args.script, "r") as f:
-            script = json.load(f)
 
     # Create the printable sheets
     print(f"[green]Creating sheets in {args.output_dir}...[/]", end="")

@@ -169,7 +169,7 @@ def run():
             reminder_icon.transform(resize=f"{max_width}x{max_height}>")
             for reminder_text in role['reminders']:
                 step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
-                reminder_name = f"{role['name']}-Reminder-{format_filename(reminder_text)}"
+                reminder_name = format_filename(f"{role['name']}-Reminder-{reminder_text}")
                 reminder_output_path = role_output_path / f"{reminder_name}.png"
                 duplicate_counter = 1
                 while reminder_output_path.exists():

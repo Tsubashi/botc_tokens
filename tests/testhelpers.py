@@ -99,6 +99,7 @@ webmock_list = [
             <div><h2 id="Summary">First ability</h2></div>
             <p>First ability description</p>
             <div><h2 id="How_to_Run">How To Run</h2></div>
+            <p><b>not a reminder</b></p>
             <div id="character-details"><img src="First.png" /></div>
           </body>
         </html>""",
@@ -108,6 +109,7 @@ webmock_list = [
             <div><h2 id="Summary">Second ability</h2></div>
             <p>Second ability description [Affects Setup]</p>
             <div><h2 id="How_to_Run">How To Run</h2></div>
+            <p><b>YOU ARE</b></p>
             <p><b>SECOND REMINDER</b></p>
             <div id="character-details"><img src="Second.png" /></div>
           </body>
