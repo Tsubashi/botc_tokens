@@ -163,10 +163,12 @@ def run():
             # Create the reminder tokens
             icon = Image(filename=role['icon'])
             reminder_icon = icon.clone()
-            # The ">" modifier will only shrink the image if it is larger than the specified size.
-            max_width = components.reminder_bg.width * 0.8
-            max_height = components.reminder_bg.height * 0.75
-            reminder_icon.transform(resize=f"{max_width}x{max_height}>")
+            # The "^" modifier means this transform specifies the minimum height and width.
+            # A transform without a modifier specifies the maximum height and width.
+            target_width = components.reminder_bg.width * 0.75
+            target_height = components.reminder_bg.height * 0.75
+            reminder_icon.transform(resize=f"{target_width}x{target_height}^")
+            reminder_icon.transform(resize=f"{target_width}x{target_height}")
             for reminder_text in role['reminders']:
                 step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
                 reminder_name = format_filename(f"{role['name']}-Reminder-{reminder_text}")
@@ -185,9 +187,11 @@ def run():
             step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
             token_icon = icon.clone()
             # The "^" modifier means this transform specifies the minimum height and width.
-            token_icon.transform(resize=f"{components.role_bg.width * 0.65}x{components.role_bg.height * 0.5}^")
-            # This transform without a modifier specifies the maximum height and width.
-            token_icon.transform(resize=f"{components.role_bg.width * 0.65}x{components.role_bg.height * 0.5}")
+            # A transform without a modifier specifies the maximum height and width.
+            target_width = components.role_bg.width * 0.6
+            target_height = components.role_bg.height * 0.5
+            token_icon.transform(resize=f"{target_width}x{target_height}^")
+            token_icon.transform(resize=f"{target_width}x{target_height}")
 
             create_role_token(token_icon, role, components, token_output_path, args.role_diameter)
 

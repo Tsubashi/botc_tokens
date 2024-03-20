@@ -6,6 +6,7 @@ from shutil import copy
 from unittest.mock import patch
 
 # Third Party`
+from pypdf import PdfReader
 import pytest
 from testhelpers import check_output_folder
 from wand.image import Image
@@ -52,7 +53,7 @@ def test_group(example_script, token_dir, tmp_path):
     output_path = tmp_path / "output"
     _run_cmd([str(example_script), "--token-dir", str(token_dir), "-o", str(output_path)])
 
-    expected_files = ["roles_1.pdf", "reminders_1.pdf"]
+    expected_files = ["roles.pdf", "reminders.pdf"]
     check_output_folder(output_path, expected_files=expected_files)
 
 
@@ -68,7 +69,7 @@ def test_paper_sizes(example_script, token_dir, tmp_path):
         "--paper-height", "512"
     ])
 
-    with Image(filename=(output_path / "roles_1.pdf")) as img:
+    with Image(filename=(output_path / "roles.pdf")) as img:
         assert img.size == (256, 512)
 
 
@@ -106,8 +107,11 @@ def test_page_overflow(example_script, token_dir, tmp_path):
         "--fixed-reminder-size", "256"
     ])
 
-    expected_files = ["roles_1.pdf", "roles_2.pdf", "reminders_1.pdf", "reminders_2.pdf", "reminders_3.pdf"]
-    check_output_folder(output_path, expected_files=expected_files)
+    role_reader = PdfReader(output_path / "roles.pdf")
+    assert len(role_reader.pages) == 2
+
+    reminder_reader = PdfReader(output_path / "reminders.pdf")
+    assert len(reminder_reader.pages) == 3
 
 
 def test_script_directory(token_dir, tmp_path):
@@ -115,7 +119,7 @@ def test_script_directory(token_dir, tmp_path):
     output_path = tmp_path / "output"
     _run_cmd([str(token_dir), "--token-dir", str(token_dir), "-o", str(output_path)])
 
-    expected_files = ["roles_1.pdf", "reminders_1.pdf"]
+    expected_files = ["roles.pdf", "reminders.pdf"]
     check_output_folder(output_path, expected_files=expected_files)
 
 
@@ -132,7 +136,7 @@ def test_multi_row(example_script, token_dir, tmp_path):
         "--fixed-role-size", "128"
     ])
 
-    expected_files = ["roles_1.pdf", "reminders_1.pdf"]
+    expected_files = ["roles.pdf", "reminders.pdf"]
     check_output_folder(output_path, expected_files=expected_files)
 
 
@@ -148,7 +152,7 @@ def test_script_dir(token_dir, tmp_path):
     output_path = tmp_path / "output"
     _run_cmd([str(token_dir), "-o", str(output_path)])
 
-    expected_files = ["roles_1.pdf", "reminders_1.pdf"]
+    expected_files = ["roles.pdf", "reminders.pdf"]
     check_output_folder(output_path, expected_files=expected_files)
 
 
@@ -162,3 +166,13 @@ def test_reminders_with_spaces(token_dir, tmp_path, test_data_dir):
         _run_cmd([str(token_dir), "-o", str(output_path)])
         printable_mock().add_token.assert_any_call(token_dir / "role_with_spaces.png")
         printable_mock().add_token.assert_any_call(token_dir / "role_with_spaces-Reminder-This_has_spaces.png")
+
+
+def test_roles_with_same_start(token_dir, tmp_path, test_data_dir):
+    """Group roles that begin the same way correctly."""
+    output_path = tmp_path / "output"
+    icon = test_data_dir / "icons" / "1.png"
+    copy(icon, token_dir / "12.png")
+    with patch("botc_tokens.commands.group.Printable") as printable_mock:
+        _run_cmd([str(token_dir), "-o", str(output_path)])
+        printable_mock().add_token.assert_any_call(token_dir / "1.png")

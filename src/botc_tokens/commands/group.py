@@ -2,6 +2,7 @@
 import argparse
 import json
 from pathlib import Path
+import re
 import sys
 
 from rich import print
@@ -111,8 +112,9 @@ def run():
             role_name = role.lower().strip()
             step_progress.update(step_task, description=f"Adding {role_name.title()}")
             # See if we have tokens for this role
-            role_file = next((t for t in role_images if role_name in t.name.lower().replace("'", "")), None)
-            reminder_files = (t for t in reminder_images if t.name.lower().replace("'", "").startswith(role_name))
+            role_file = next((t for t in role_images if role_name == t.stem.lower().replace("'", "")), None)
+            reminder_regex = re.compile(f"{role_name}-reminder.*")
+            reminder_files = (t for t in reminder_images if reminder_regex.match(t.stem.lower().replace("'", "")))
             if not role_file:
                 print(f"[yellow]Warning:[/] No token found for {role_name}")
                 continue
@@ -121,6 +123,10 @@ def run():
                 reminder_page.add_token(reminder)
 
         # Save the last pages
-        step_progress.update(step_task, description="Saving remaining pages")
-        role_page.save_page()
-        reminder_page.save_page()
+        step_progress.update(step_task, description="Saving pages")
+        role_page.write()
+        reminder_page.write()
+
+        # Clean up
+        role_page.close()
+        reminder_page.close()

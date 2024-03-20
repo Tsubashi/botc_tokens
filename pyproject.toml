@@ -31,7 +31,8 @@ test = [
     "flake8-colors",
     "pep8-naming",
     "pytest",
-    "pytest-cov"
+    "pytest-cov",
+    "pypdf"
     ]
 
 [project.scripts]

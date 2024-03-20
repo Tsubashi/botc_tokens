@@ -27,7 +27,8 @@ class Printable:
         # Subtracting 74px from each side to account for printer margins leaves our default of 2402 x 3152px
         self.page_width = page_width
         self.page_height = page_height
-        self.page = Image(width=self.page_width, height=self.page_height, resolution=(300, 300))
+        self.page = None
+        self.document = Image()
         self.current_x = 0
         self.current_y = 0
         self.next_row_should_be_inset = False
@@ -37,19 +38,30 @@ class Printable:
         self.padding = padding
         self.diameter = diameter
 
+        self.save_page()  # Initializes the first page
+
     def save_page(self):
         """Save the current page and reset the state."""
-        # Don't save a blank sheet
-        if self.current_x == 0 and self.current_y == 0:
-            return
-        self.page.save(filename=self.output_dir / f"{self.basename}_{self.page_number}.pdf")
-        self.page.close()
-
-        # Reset the state
+        if not (self.current_x == 0 and self.current_y == 0):
+            # Only save if we added content
+            self.document.sequence.append(self.page)
+            self.current_x, self.current_y = 0, 0
+            self.page_number += 1
+            self.next_row_should_be_inset = False
         self.page = Image(width=self.page_width, height=self.page_height, resolution=(300, 300))
-        self.current_x, self.current_y = 0, 0
-        self.page_number += 1
-        self.next_row_should_be_inset = False
+
+    def write(self):
+        """Write everything to disk."""
+        # Save the last page if it has content
+        if self.current_x != 0 or self.current_y != 0:
+            self.save_page()
+        if self.document.sequence:
+            self.document.save(filename=self.output_dir / f"{self.basename}.pdf", adjoin=True)
+
+    def close(self):
+        """Close all Wand objects."""
+        self.document.close()
+        self.page.close()
 
     def add_token(self, token_file):
         """Add a token to the current page."""
