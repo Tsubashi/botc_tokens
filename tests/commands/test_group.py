@@ -162,3 +162,13 @@ def test_reminders_with_spaces(token_dir, tmp_path, test_data_dir):
         _run_cmd([str(token_dir), "-o", str(output_path)])
         printable_mock().add_token.assert_any_call(token_dir / "role_with_spaces.png")
         printable_mock().add_token.assert_any_call(token_dir / "role_with_spaces-Reminder-This_has_spaces.png")
+
+
+def test_roles_with_same_start(token_dir, tmp_path, test_data_dir):
+    """Group roles that begin the same way correctly."""
+    output_path = tmp_path / "output"
+    icon = test_data_dir / "icons" / "1.png"
+    copy(icon, token_dir / "12.png")
+    with patch("botc_tokens.commands.group.Printable") as printable_mock:
+        _run_cmd([str(token_dir), "-o", str(output_path)])
+        printable_mock().add_token.assert_any_call(token_dir / "1.png")
