@@ -123,6 +123,10 @@ def run():
                 reminder_page.add_token(reminder)
 
         # Save the last pages
-        step_progress.update(step_task, description="Saving remaining pages")
-        role_page.save_page()
-        reminder_page.save_page()
+        step_progress.update(step_task, description="Saving pages")
+        role_page.write()
+        reminder_page.write()
+
+        # Clean up
+        role_page.close()
+        reminder_page.close()

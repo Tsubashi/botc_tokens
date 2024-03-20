@@ -165,7 +165,7 @@ def run():
             reminder_icon = icon.clone()
             # The "^" modifier means this transform specifies the minimum height and width.
             # A transform without a modifier specifies the maximum height and width.
-            target_width = components.reminder_bg.width * 0.8
+            target_width = components.reminder_bg.width * 0.75
             target_height = components.reminder_bg.height * 0.75
             reminder_icon.transform(resize=f"{target_width}x{target_height}^")
             reminder_icon.transform(resize=f"{target_width}x{target_height}")
@@ -188,7 +188,7 @@ def run():
             token_icon = icon.clone()
             # The "^" modifier means this transform specifies the minimum height and width.
             # A transform without a modifier specifies the maximum height and width.
-            target_width = components.role_bg.width * 0.65
+            target_width = components.role_bg.width * 0.6
             target_height = components.role_bg.height * 0.5
             token_icon.transform(resize=f"{target_width}x{target_height}^")
             token_icon.transform(resize=f"{target_width}x{target_height}")
