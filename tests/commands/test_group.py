@@ -176,3 +176,34 @@ def test_roles_with_same_start(token_dir, tmp_path, test_data_dir):
     with patch("botc_tokens.commands.group.Printable") as printable_mock:
         _run_cmd([str(token_dir), "-o", str(output_path)])
         printable_mock().add_token.assert_any_call(token_dir / "1.png")
+
+
+def test_valid_duplicates_file(token_dir, tmp_path):
+    """Use a duplicates file."""
+    duplicates_file = tmp_path / "duplicates.json"
+    with open(duplicates_file, "w") as f:
+        f.write('{"1": 3}')
+    output_path = tmp_path / "printables"
+    _run_cmd([
+        str(token_dir),
+        "-o", str(output_path),
+        "--paper-width", "256",
+        "--paper-height", "256",
+        "--padding", "0",
+        "--fixed-role-size", "128",
+        "--duplicates", str(duplicates_file)
+    ])
+    with open(output_path / "roles.pdf", "rb") as f:
+        reader = PdfReader(f)
+        assert len(reader.pages) == 4
+
+
+def test_invalid_duplicates_file(token_dir, tmp_path, capsys):
+    """Alert the user if the duplicates file doesn't match the schema."""
+    duplicates_file = tmp_path / "duplicates.json"
+    with open(duplicates_file, "w") as f:
+        f.write('{"Librarian": ["REMINDER"]}')
+    output_path = tmp_path / "printables"
+    _run_cmd([str(token_dir), "-o", str(output_path), "--duplicates", str(duplicates_file)])
+    output = capsys.readouterr()
+    assert "does not match the schema:" in output.out
