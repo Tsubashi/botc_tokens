@@ -51,6 +51,20 @@ pythonpath = ["src"]
 
 [tool.coverage.run]
 source = ["src"]
+branch = true
+omit = ["src/botc_tokens/__version__.py"]
+
+[tool.coverage.report]
+# Regexes for lines to exclude from consideration
+exclude_also = [
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    "if self\\.debug",
+
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+    ]
 
 [tool.yapf]
 column_limit = 120

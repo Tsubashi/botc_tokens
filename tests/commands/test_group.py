@@ -178,6 +178,24 @@ def test_roles_with_same_start(token_dir, tmp_path, test_data_dir):
         printable_mock().add_token.assert_any_call(token_dir / "1.png")
 
 
+def test_known_duplicates_file(token_dir, tmp_path, test_data_dir):
+    """Use a duplicates file."""
+    output_path = tmp_path / "printables"
+    icon = test_data_dir / "icons" / "1.png"
+    copy(icon, token_dir / "Legion.png")
+    _run_cmd([
+        str(token_dir),
+        "-o", str(output_path),
+        "--paper-width", "256",
+        "--paper-height", "256",
+        "--padding", "0",
+        "--fixed-role-size", "128"
+    ])
+    with open(output_path / "roles.pdf", "rb") as f:
+        reader = PdfReader(f)
+        assert len(reader.pages) == 7
+
+
 def test_valid_duplicates_file(token_dir, tmp_path):
     """Use a duplicates file."""
     duplicates_file = tmp_path / "duplicates.json"

@@ -1,9 +1,9 @@
 { "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "patternProperties": {
-    "^[A-Za-z0-9_']+$": {
+    "^[a-z0-9_']+$": {
       "type": "integer"
-    },
-    "additionalProperties": false
-  }
+    }
+  },
+  "additionalProperties": false
 }

@@ -39,4 +39,4 @@ jobs:
         sudo sed -i 's/^.*policy.*coder.*none.*PDF.*//' /etc/ImageMagick-6/policy.xml
     - name: Test with pytest
       run: |
-        pytest --cov botc_tokens --cov-report term-missing --cov-fail-under=99
+        pytest --cov botc_tokens --cov-report term-missing --cov-fail-under=100
