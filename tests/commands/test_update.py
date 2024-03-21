@@ -235,3 +235,18 @@ def test_web_error_getting_icon(tmp_path, capsys):
         update.get_role_icon(found_role, output_path, wiki)
     output = capsys.readouterr()
     assert "Unable to download icon" in output.out
+
+
+def test_invalid_reminder_file(tmp_path, capsys):
+    """Alert the user if the reminders file doesn't match the schema."""
+    reminders_file = tmp_path / "reminders.json"
+    with open(reminders_file, "w") as f:
+        f.write('{"Librarian": 2}')
+    output_path = tmp_path / "roles"
+    with mock.patch("sys.argv",
+                    ["botc_tokens", "update", "--output", str(output_path), "--reminders", str(reminders_file)]
+                    ):
+        with web_mock():
+            update.run()
+    output = capsys.readouterr()
+    assert "does not match the schema:" in output.out

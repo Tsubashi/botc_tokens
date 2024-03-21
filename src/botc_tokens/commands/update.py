@@ -13,12 +13,14 @@ from urllib.request import urlopen
 
 
 # Third-party libraries
+from jsonschema import validate, ValidationError
 from rich import print
 from rich.live import Live
 from wand.color import Color
 from wand.image import Image
 
 # Application specific
+from .. import data_dir
 from ..helpers.progress_group import setup_progress_group
 from ..helpers.role import Role
 from ..helpers.text_tools import format_filename
@@ -55,7 +57,13 @@ def run():
         step_progress.update(step_task, description="Reading reminder overrides file")
         if args.reminders:
             with open(args.reminders, "r") as f:
-                wiki.reminder_overrides = json.load(f)
+                json_data = json.load(f)
+                try:
+                    validate(json_data, json.load(open(data_dir / "reminder_schema.json")))
+                except ValidationError as e:
+                    print(f"[red]Error:[/] {args.reminders} does not match the schema: {e}")
+                    return 1
+                wiki.reminder_overrides = json_data
 
         # Step through each role and grab the relevant data before adding it to the list.
         overall_progress.update(role_task, total=len(wiki.role_data))
