@@ -9,6 +9,7 @@
  "Assassin": ["DEAD", "NO ABILITY"],
  "Atheist": [],
  "Balloonist": ["TOWNSFOLK", "OUTSIDER", "MINION", "DEMON"],
+ "Banshee": ["HAS ABILITY"],
  "Barber": ["HAIRCUTS TONIGHT"],
  "Barista": ["SOBER AND HEALTHY", "ACTS TWICE"],
  "Baron": [],
