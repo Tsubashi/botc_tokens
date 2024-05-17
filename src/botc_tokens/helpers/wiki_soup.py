@@ -18,10 +18,15 @@ class WikiSoup:
         with open(data_dir / "known_reminders.json", "r") as f:
             self.reminders = json.load(f)
         self.reminder_overrides = {}
+        self.role_data = {}
+        self.night_data = {"firstNight": [], "otherNight": []}
+        self._script_filter = script_filter
+
+    def load_from_web(self):
         roles_from_web = urlopen("https://script.bloodontheclocktower.com/data/roles.json").read().decode('utf-8')
         self.role_data = json.loads(roles_from_web)
         # Filter the roles
-        self.role_data = [role for role in self.role_data if script_filter in role['version']]
+        self.role_data = [role for role in self.role_data if self._script_filter in role['version']]
         night_from_web = urlopen("https://script.bloodontheclocktower.com/data/nightsheet.json").read().decode('utf-8')
         self.night_data = json.loads(night_from_web)
 

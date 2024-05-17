@@ -35,6 +35,8 @@ def _parse_args():
                         help="Filter for scripts to pull (Default: 'Experimental')")
     parser.add_argument('--reminders', type=str,
                         help="JSON file to override reminder guesses from the wiki.")
+    parser.add_argument('-c','--custom-list', type=str, default=None,
+                        help="JSON file with a custom list of roles to update.")
     args = parser.parse_args(sys.argv[2:])
     return args
 
@@ -49,9 +51,27 @@ def run():
         # create overall progress bar
         role_task = overall_progress.add_task("Updating role data...", total=None)
 
-        # Download the official lists from the script tool by initializing the WikiSoup
-        step_task = step_progress.add_task("Downloading role data from the official script tool")
+        # Gather the requested role data
         wiki = WikiSoup(args.script_filter)
+        if args.custom_list:
+            custom_list_path = Path(args.custom_list)
+            if not custom_list_path.exists():
+                print(f"[red]Error:[/] Could not find '{args.custom_list}'")
+                return 1
+            step_task = step_progress.add_task("Reading role data from custom list")
+            with open(custom_list_path, "r") as f:
+                custom_list = json.load(f)
+                try:
+                    validate(custom_list, json.load(open(data_dir / "role_schema.json")))
+                except ValidationError as e:
+                    print(f"[red]Error:[/] Could not parse '{args.custom_list}' as it does not match the schema: {e}")
+                    return 1
+                wiki.role_data = custom_list
+
+        else:
+            # Download the official lists from the script tool
+            step_task = step_progress.add_task("Downloading role data from the official script tool")
+            wiki.load_from_web()
 
         # Open the reminder overrides file, if it exists
         step_progress.update(step_task, description="Reading reminder overrides file")
@@ -69,7 +89,12 @@ def run():
         overall_progress.update(role_task, total=len(wiki.role_data))
         for role in wiki.role_data:
             step_progress.update(step_task, description=f"Found role: {role['name']}")
-            role_output_path = output_path / role['version'] / role['roleType']
+            # Determine this role's team, preferring the roleType field
+            team = role.get("roleType")
+            team = role.get("team") if team is None else team
+            team = "Unknown" if team is None else team
+
+            role_output_path = output_path / team
             role_output_path.mkdir(parents=True, exist_ok=True)
             role_file = role_output_path / f"{format_filename(role['name'])}.json"
 
@@ -97,6 +122,10 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path):
         step_task (int): The task to update.
         role_output_path (Path): The path to write the role file to.
     """
+
+    if role.get("id") == "_meta":  # Skip the metadata
+        return None
+
     name = role['name']
     found_role = Role(name=name)
 
@@ -112,18 +141,28 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path):
 
     # Get info from the wiki
     step_progress.update(step_task, description=f"Getting ability text for {name}")
-    get_role_ability(found_role, wiki)
+    if role.get("ability"):
+        found_role.ability = role.get("ability")
+    else:
+        get_role_ability(found_role, wiki)
 
     step_progress.update(step_task, description=f"Getting reminders for {name}")
-    get_role_reminders(found_role, wiki)
+    if role.get("reminders"):
+        found_role.reminders = role.get("reminders")
+    else:
+        get_role_reminders(found_role, wiki)
 
     # Grab the icon, checking first to see if it exists
     if found_role.icon:
         icon_path = role_output_path / found_role.icon
         if not icon_path.exists():
             found_role.icon = None
-    # If we don't have the icon, go get it from the wiki
+
+    # If we don't have the icon, go get it
     if not found_role.icon:
+        # Set the icon URL if we already have it
+        if role.get("image"):
+            found_role.icon = role.get("image")
         step_progress.update(step_task, description=f"Getting icon for {name}")
         get_role_icon(found_role, role_output_path, wiki)
     # Determine night actions
@@ -134,9 +173,15 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path):
         found_role.affects_setup = True
     # Record home script and type
     if not found_role.home_script:
-        found_role.home_script = role['version']
+        home = role.get("version")
+        home = role.get("edition") if home is None else home
+        home = "Unknown" if home is None else home
+        found_role.home_script = home
     if not found_role.type:
-        found_role.type = role['roleType']
+        team = role.get("roleType")
+        team = role.get("team") if team is None else team
+        team = "Unknown" if team is None else team
+        found_role.type = team
     return found_role
 
 
@@ -148,12 +193,16 @@ def get_role_icon(found_role, role_output_path, wiki):
         role_output_path (Path): The path to write the icon to.
         wiki (WikiSoup): The wiki soup object.
     """
-    try:
-        icon_url = wiki.get_big_icon_url(found_role.name)
-    except RuntimeError as e:
-        print(f"[red]Error:[/] No icon found for {found_role.name}: {str(e)}")
-        return
-    icon_url = urllib.parse.urljoin("https://wiki.bloodontheclocktower.com", icon_url)
+    if found_role.icon:
+        # We presume that an already set icon is a URL from a custom list
+        icon_url = found_role.icon
+    else:
+        try:
+            icon_url = wiki.get_big_icon_url(found_role.name)
+        except RuntimeError as e:
+            print(f"[red]Error:[/] No icon found for {found_role.name}: {str(e)}")
+            return
+        icon_url = urllib.parse.urljoin("https://wiki.bloodontheclocktower.com", icon_url)
     icon_path = role_output_path / f"{format_filename(found_role.name)}{Path(icon_url).suffix}"
     icon_path.parent.mkdir(parents=True, exist_ok=True)
     if not icon_path.exists():
