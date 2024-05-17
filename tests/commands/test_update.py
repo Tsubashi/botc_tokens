@@ -56,10 +56,10 @@ def test_update_command(tmp_path):
 
     # Verify that it worked
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
+        str(Path("townsfolk") / "First.json"),
+        str(Path("townsfolk") / "First.png"),
+        str(Path("demon") / "Second.json"),
+        str(Path("demon") / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files, check_func=check_expected_json)
 
@@ -68,7 +68,7 @@ def test_update_existing_folder(tmp_path):
     """Test when a file in the output folder already exists."""
     output_path = tmp_path / "roles"
     output_path.mkdir()
-    first_file = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json"
+    first_file = output_path / "townsfolk" / "First.json"
     first_file.parent.mkdir(parents=True, exist_ok=True)
     with open(first_file, "w") as f:
         json.dump(expected_role_json.get("First.json"), f)
@@ -78,10 +78,10 @@ def test_update_existing_folder(tmp_path):
 
     # Verify that it worked
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
+        str(Path("townsfolk") / "First.json"),
+        str(Path("townsfolk") / "First.png"),
+        str(Path("demon") / "Second.json"),
+        str(Path("demon") / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files, check_func=check_expected_json)
 
@@ -90,7 +90,7 @@ def test_update_bad_json(tmp_path, capsys):
     """Test when a file in the output folder exists, but isn't in the format we expect."""
     output_path = tmp_path / "roles"
     output_path.mkdir()
-    first_file = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json"
+    first_file = output_path / "townsfolk" / "First.json"
     first_file.parent.mkdir(parents=True, exist_ok=True)
     with open(first_file, "w") as f:
         f.write("This is not json")
@@ -100,9 +100,9 @@ def test_update_bad_json(tmp_path, capsys):
 
     # Verify that we got the files we expected
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
+        str(Path("townsfolk") / "First.json"),
+        str(Path("demon") / "Second.json"),
+        str(Path("demon") / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -126,8 +126,8 @@ def test_update_script_filter(tmp_path):
 
     # Verify that it worked
     expected_files = [
-        str(Path("99 - Ignored") / "outsider" / "Third.json"),
-        str(Path("99 - Ignored") / "outsider" / "Third.png"),
+        str(Path("outsider") / "Third.json"),
+        str(Path("outsider") / "Third.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -150,7 +150,7 @@ def test_update_icon_already_exists(tmp_path):
     """Test when the icon already exists."""
     output_path = tmp_path / "roles"
     output_path.mkdir()
-    icon_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.png"
+    icon_path = output_path / "townsfolk" / "First.png"
     icon_path.parent.mkdir(parents=True, exist_ok=True)
     icon_path.touch()
     with mock.patch("sys.argv", ["botc_tokens", "update", "--output", str(output_path)]):
@@ -159,10 +159,10 @@ def test_update_icon_already_exists(tmp_path):
 
     # Verify that it worked
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
+        str(Path("townsfolk") / "First.json"),
+        str(Path("townsfolk") / "First.png"),
+        str(Path("demon") / "Second.json"),
+        str(Path("demon") / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -181,16 +181,16 @@ def test_update_custom_reminders_file(tmp_path):
 
     # Verify that it worked
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
+        str(Path("townsfolk") / "First.json"),
+        str(Path("townsfolk") / "First.png"),
+        str(Path("demon") / "Second.json"),
+        str(Path("demon") / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
-    with open(output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json", "r") as f:
+    with open(output_path / "townsfolk" / "First.json", "r") as f:
         j = json.load(f)
     assert j["reminders"] == ["Custom reminder"]
-    with open(output_path / "54 - Unreal Experimental" / "demon" / "Second.json", "r") as f:
+    with open(output_path / "demon" / "Second.json", "r") as f:
         j = json.load(f)
     assert j["reminders"] == ["SECOND REMINDER"]
 
@@ -199,10 +199,10 @@ def test_update_existing_icon_and_json(tmp_path):
     """Test when the icon and json file already exist."""
     output_path = tmp_path / "roles"
     output_path.mkdir()
-    icon_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.png"
+    icon_path = output_path / "townsfolk" / "First.png"
     icon_path.parent.mkdir(parents=True, exist_ok=True)
     icon_path.touch()
-    json_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json"
+    json_path = output_path / "townsfolk" / "First.json"
     json_path.parent.mkdir(parents=True, exist_ok=True)
     with open(json_path, "w") as f:
         json.dump(expected_role_json.get("First.json"), f)
@@ -212,10 +212,10 @@ def test_update_existing_icon_and_json(tmp_path):
 
     # Verify that it worked
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
+        str(Path("townsfolk") / "First.json"),
+        str(Path("townsfolk") / "First.png"),
+        str(Path("demon") / "Second.json"),
+        str(Path("demon") / "Second.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -232,7 +232,7 @@ def test_web_error_getting_icon(tmp_path, capsys):
         image_read_mock.read.side_effect = HTTPError("First.png", 404, "Failed to get icon", "hdrs", fp)
         urlopen_mock.return_value.__enter__.return_value.read = image_read_mock
         urlopen_mock.return_value = image_read_mock
-        update.get_role_icon(found_role, output_path, wiki)
+        update.get_role_icon(found_role, {}, output_path, wiki)
     output = capsys.readouterr()
     assert "Unable to download icon" in output.out
 
@@ -250,3 +250,74 @@ def test_invalid_reminder_file(tmp_path, capsys):
             update.run()
     output = capsys.readouterr()
     assert "does not match the schema:" in output.out
+
+
+def test_custom_list(tmp_path):
+    """Test using a custom list instead of the wiki."""
+    custom_list = tmp_path / "custom.json"
+    with open(custom_list, "w") as f:
+        json.dump([
+            {"id": "_meta"},
+            {
+                "id": "First",
+                "name": "First",
+                "image": "First.png",
+                "team": "townsfolk",
+                "ability": "First Ability",
+                "edition": "99 - Testing",
+                "firstNight": 1,
+                "otherNight": 0,
+            },
+            {
+                "id": "Second",
+                "name": "Second",
+                "image": "Second.png",
+                "team": "townsfolk",
+                "ability": "Second Ability",
+                "edition": "99 - Testing",
+                "firstNight": 0,
+                "otherNight": 5,
+            },
+        ], f)
+    output_path = tmp_path / "roles"
+    with mock.patch("sys.argv",
+                    ["botc_tokens", "update", "--output", str(output_path), "--custom-list", str(custom_list)]
+                    ):
+        with web_mock():
+            update.run()
+
+    # Verify that it worked
+    expected_files = [
+        str(Path("townsfolk") / "First.json"),
+        str(Path("townsfolk") / "First.png"),
+        str(Path("townsfolk") / "Second.json"),
+        str(Path("townsfolk") / "Second.png"),
+    ]
+    check_output_folder(output_path, expected_files=expected_files)
+
+
+def test_nonexistent_custom_list(tmp_path, capsys):
+    """Alert the user if the input doesn't exist."""
+    output_path = tmp_path / "roles"
+    with mock.patch("sys.argv",
+                    ["botc_tokens", "update", "--output", str(output_path), "--custom-list", str(tmp_path / "nope")]
+                    ):
+        with web_mock():
+            update.run()
+    output = capsys.readouterr()
+    assert "Could not find" in output.out
+
+
+def test_bad_format_custom_list(tmp_path, capsys):
+    """Alert the user if the custom list doesn't match the schema."""
+    custom_list = tmp_path / "custom.json"
+    with open(custom_list, "w") as f:
+        f.write('{"Librarian": 2}')
+    output_path = tmp_path / "roles"
+    with mock.patch("sys.argv",
+                    ["botc_tokens", "update", "--output", str(output_path), "--custom-list", str(custom_list)]
+                    ):
+        with web_mock():
+            update.run()
+    output = capsys.readouterr()
+    assert "Could not parse" in output.out
