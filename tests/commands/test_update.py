@@ -271,7 +271,7 @@ def test_custom_list(tmp_path):
             {
                 "id": "Second",
                 "name": "Second",
-                "image": "Second.png",
+                "image": ["Second.png", "Second_evil.png"],
                 "team": "townsfolk",
                 "ability": "Second Ability",
                 "edition": "99 - Testing",

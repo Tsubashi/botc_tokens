@@ -7,10 +7,10 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 import sys
+from time import sleep
 from urllib.error import HTTPError
 import urllib.parse
-from urllib.request import urlopen
-
+from urllib.request import urlopen, Request
 
 # Third-party libraries
 from jsonschema import validate, ValidationError
@@ -205,7 +205,13 @@ def get_role_icon(found_role, role, role_output_path, wiki):
             return
     # Set the icon URL if we already have it
     if role.get("image"):
-        icon_url = role.get("image")
+        img = role.get("image")
+        if isinstance(img, list):
+            # Empty lists would already be caught by the check above.
+            # Since we don't support multiple icons, just take the first one. It should match the team alignment.
+            icon_url = img[0]
+        else:
+            icon_url = img
     else:
         try:
             icon_url = wiki.get_big_icon_url(found_role.name)
@@ -220,8 +226,17 @@ def get_role_icon(found_role, role, role_output_path, wiki):
         try:
             image_bits = urlopen(icon_url).read()
         except HTTPError as e:
-            print(f"[red]Error:[/] Unable to download icon for {found_role.name}: {str(e)}")
-            return
+            if e.code == 429:  # Rate limit
+                try:
+                    sleep(0.5)
+                    req = Request(icon_url, headers={'User-Agent': 'Mozilla/5.0'})
+                    image_bits = urlopen(req).read()
+                except HTTPError:
+                    print(f"[red]Error:[/] Unable to download icon for {found_role.name} using 2 methods: {str(e)}")
+                    return
+            else:
+                print(f"[red]Error:[/] Unable to download icon for {found_role.name}: {str(e)}")
+                return
         # Parse the image
         with Image(blob=image_bits) as img:
             # Remove the extra space around the icon
