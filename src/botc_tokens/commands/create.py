@@ -16,6 +16,7 @@ from wand.image import Image
 # Application Specific
 from .. import component_path as default_component_path
 from ..helpers.progress_group import setup_progress_group
+from ..helpers.role import Role
 from ..helpers.text_tools import curved_text_to_image, fit_ability_text, format_filename
 from ..helpers.token_components import TokenComponents
 from ..helpers.token_creation import create_reminder_token, create_role_token
@@ -70,18 +71,18 @@ def run():
         overall_task = overall_progress.add_task("Creating Tokens...", total=len(roles))
         step_task = step_progress.add_task("Reading roles...")
         for role in roles:
-            step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
+            step_progress.update(step_task, description=f"Creating Token for: {role.name}")
             # Make sure our target directory exists
-            role_output_path = output_path / role['home_script'] / role['type']
+            role_output_path = output_path / role.home_script / role.type
             role_output_path.mkdir(parents=True, exist_ok=True)
 
             # Skip if the token already exists
-            token_output_path = role_output_path / f"{format_filename(role['name'])}.png"
+            token_output_path = role_output_path / f"{format_filename(role.name)}.png"
             if token_output_path.exists():
                 continue
 
             # Create the reminder tokens
-            icon = Image(filename=role['icon'])
+            icon = Image(filename=role.icon)
             reminder_icon = icon.clone()
             # The "^" modifier means this transform specifies the minimum height and width.
             # A transform without a modifier specifies the maximum height and width.
@@ -89,9 +90,9 @@ def run():
             target_height = components.reminder_bg.height * 0.75
             reminder_icon.transform(resize=f"{target_width}x{target_height}^")
             reminder_icon.transform(resize=f"{target_width}x{target_height}")
-            for reminder_text in role['reminders']:
-                step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
-                reminder_name = format_filename(f"{role['name']}-Reminder-{reminder_text}")
+            for reminder_text in role.reminders:
+                step_progress.update(step_task, description=f"Creating Token for: {role.name}")
+                reminder_name = format_filename(f"{role.name}-Reminder-{reminder_text}")
                 reminder_output_path = role_output_path / f"{reminder_name}.png"
                 duplicate_counter = 1
                 while reminder_output_path.exists():
@@ -105,7 +106,7 @@ def run():
             reminder_icon.close()
 
             # Composite the various pieces of the token.
-            step_progress.update(step_task, description=f"Creating Token for: {role.get('name')}")
+            step_progress.update(step_task, description=f"Creating Token for: {role.name}")
             token_icon = icon.clone()
 
             token = create_role_token(token_icon, role, components, args.role_diameter)
@@ -145,5 +146,9 @@ def find_roles_from_json(json_files):
             data = json.load(f)
         # Rewrite the icon path to be relative to our working directory
         data['icon'] = str(json_file.parent / data.get('icon'))
-        roles.append(data)
+        role = Role(data.get('name', "Unknown"))
+        for att in dir(role):
+            if att in data:
+                setattr(role, att, data[att])
+        roles.append(role)
     return roles

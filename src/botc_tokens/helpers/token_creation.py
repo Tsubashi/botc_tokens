@@ -2,6 +2,9 @@
 # Standard Library
 import string
 
+from wand.image import Image
+
+from .role import Role
 # Third Party
 
 # Application Specific
@@ -33,7 +36,7 @@ def create_reminder_token(reminder_icon, reminder_text, components, diameter):
     return reminder
 
 
-def create_role_token(token_icon, role, components, diameter):
+def create_role_token(token_icon: Image, role: Role, components: TokenComponents, diameter: int):
     """Create and save a role token.
 
     Args:
@@ -53,7 +56,7 @@ def create_role_token(token_icon, role, components, diameter):
 
     # Check if we have reminders. If so, add leaves.
     token = components.get_role_bg()
-    for leaf in components.leaves[:len(role['reminders'])]:
+    for leaf in components.leaves[:len(role.reminders)]:
         token.composite(leaf, left=0, top=0)
 
     # Determine where to place the icon
@@ -62,15 +65,15 @@ def create_role_token(token_icon, role, components, diameter):
     token.composite(token_icon, left=icon_x, top=icon_y)
     token_icon.close()
     # Check for modifiers
-    if role.get('first_night'):
+    if role.first_night:
         token.composite(components.left_leaf, left=0, top=0)
-    if role.get('other_nights'):
+    if role.other_nights:
         token.composite(components.right_leaf, left=0, top=0)
-    if role.get('affects_setup'):
+    if role.affects_setup:
         token.composite(components.setup_flower, left=0, top=0)
     # Add ability text to the token
     ability_text_img = fit_ability_text(
-        text=role['ability'],
+        text=role.ability,
         font_size=int(token.height * 0.055),
         first_line_width=int(token.width * .52),
         step=int(token.width * .1),
@@ -80,7 +83,7 @@ def create_role_token(token_icon, role, components, diameter):
     token.composite(ability_text_img, left=ability_text_x, top=int(token.height * 0.09))
     ability_text_img.close()
     # Add the role name to the token
-    text_img = curved_text_to_image(role['name'], "role", token.width, components)
+    text_img = curved_text_to_image(role.name, "role", token.width, components)
     text_x = (token.width - text_img.width) // 2
     text_y = (token.height - text_img.height - int(token.height * 0.08))
     token.composite(text_img, left=text_x, top=text_y)

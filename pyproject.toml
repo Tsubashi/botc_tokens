@@ -35,6 +35,11 @@ test = [
     "pytest-cov",
     "pypdf"
     ]
+api = [
+    "fastapi",
+    "pydantic",
+    ]
+
 
 [project.scripts]
 botc_tokens = "botc_tokens:__main__.main"
