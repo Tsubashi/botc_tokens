@@ -4,6 +4,7 @@ from time import sleep
 
 # Third Party
 from fastapi import FastAPI, HTTPException, Response
+from fastapi.middleware.cors import CORSMiddleware
 from urllib.parse import urlparse
 from urllib.request import urlopen, Request, HTTPError
 from wand.color import Color
@@ -18,6 +19,15 @@ from ..helpers.token_creation import create_role_token
 
 
 app = FastAPI()
+
+# Add CORS headers to allow for cross-origin requests. For now, we'll allow all origins.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def get_icon(url: str):
