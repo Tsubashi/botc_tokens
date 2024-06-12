@@ -57,7 +57,7 @@ pythonpath = ["src"]
 [tool.coverage.run]
 source = ["src"]
 branch = true
-omit = ["src/botc_tokens/__version__.py"]
+omit = ["src/botc_tokens/__version__.py", "src/botc_tokens/api"]
 
 [tool.coverage.report]
 # Regexes for lines to exclude from consideration

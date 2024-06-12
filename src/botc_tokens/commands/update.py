@@ -226,15 +226,14 @@ def get_role_icon(found_role, role, role_output_path, wiki):
         try:
             image_bits = urlopen(icon_url).read()
         except HTTPError as e:
-            if e.code == 429:  # Rate limit
-                try:
-                    sleep(0.5)
-                    req = Request(icon_url, headers={'User-Agent': 'Mozilla/5.0'})
-                    image_bits = urlopen(req).read()
-                except HTTPError:
-                    print(f"[red]Error:[/] Unable to download icon for {found_role.name} using 2 methods: {str(e)}")
-                    return
-            else:
+            # Retry failed requests with a few changes
+            # - a slight delay to appease rate limits
+            # - a different User-Agent
+            sleep(0.5)
+            try:
+                req = Request(icon_url, headers={'User-Agent': 'Mozilla/5.0'})
+                image_bits = urlopen(req).read()
+            except HTTPError:
                 print(f"[red]Error:[/] Unable to download icon for {found_role.name}: {str(e)}")
                 return
         # Parse the image
