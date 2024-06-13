@@ -3,7 +3,6 @@
 import argparse
 import json
 from pathlib import Path
-import string
 import sys
 from zipfile import BadZipFile
 
@@ -17,7 +16,7 @@ from wand.image import Image
 from .. import component_path as default_component_path
 from ..helpers.progress_group import setup_progress_group
 from ..helpers.role import Role
-from ..helpers.text_tools import curved_text_to_image, fit_ability_text, format_filename
+from ..helpers.text_tools import format_filename
 from ..helpers.token_components import TokenComponents
 from ..helpers.token_creation import create_reminder_token, create_role_token
 

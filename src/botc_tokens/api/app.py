@@ -1,12 +1,12 @@
 """The API App for the botc_tokens service."""
 # Standard Library
 from time import sleep
+from urllib.parse import urlparse
+from urllib.request import HTTPError, Request, urlopen
 
 # Third Party
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from urllib.parse import urlparse
-from urllib.request import urlopen, Request, HTTPError
 from wand.color import Color
 from wand.image import Image
 

@@ -10,7 +10,7 @@ import sys
 from time import sleep
 from urllib.error import HTTPError
 import urllib.parse
-from urllib.request import urlopen, Request
+from urllib.request import Request, urlopen
 
 # Third-party libraries
 from jsonschema import validate, ValidationError

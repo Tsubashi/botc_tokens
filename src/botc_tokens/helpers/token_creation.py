@@ -2,12 +2,11 @@
 # Standard Library
 import string
 
+# Third Party
 from wand.image import Image
 
-from .role import Role
-# Third Party
-
 # Application Specific
+from .role import Role
 from .text_tools import curved_text_to_image, fit_ability_text
 from .token_components import TokenComponents
 
@@ -45,7 +44,6 @@ def create_role_token(token_icon: Image, role: Role, components: TokenComponents
         components (TokenComponents): The component package to use.
         diameter (int): The diameter (in pixels) to use for role tokens.
     """
-
     # Adjust icon size
     # The "^" modifier means this transform specifies the minimum height and width.
     # A transform without a modifier specifies the maximum height and width.
