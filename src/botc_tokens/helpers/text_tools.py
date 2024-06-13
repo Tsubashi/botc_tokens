@@ -21,6 +21,7 @@ def fit_ability_text(text, font_size, first_line_width, step, components):
     # Make sure we have text to draw. Otherwise, just return an empty image.
     if text == "":
         return img
+
     with Drawing() as draw:
         # Assign font details
         draw.font = str(components.AbilityTextFont)
@@ -30,6 +31,7 @@ def fit_ability_text(text, font_size, first_line_width, step, components):
         # Since we never want more than 4 lines, we'll add a loop checking if we have exceeded that, and then just
         # start the line counter above that limit so that we run at least once.
         original_text = text
+        has_bracket = (original_text[-1] == "]")
         lines = [1, 2, 3, 4, 5]
         while len(lines) > 4:
             text = original_text
@@ -44,15 +46,25 @@ def fit_ability_text(text, font_size, first_line_width, step, components):
                 metrics = draw.get_font_metrics(img, line_text)
                 while metrics.text_width > target_width:
                     line_text = " ".join(line_text.split(" ")[:-1])
+                    # Check for brackets
+                    if has_bracket and "[" in line_text:
+                        # Brackets that need to be split should start their own line.
+                        split_text = line_text.split("[")
+                        line_text = split_text[0]
+                        if line_text == "":
+                            line_text = f"[{split_text[1]}"
+
                     metrics = draw.get_font_metrics(img, line_text)
                 # Now that we have a line that fits, update all our tracking variables
                 largest_line_width = max(largest_line_width, metrics.text_width)
                 max_height = max_height + metrics.text_height
                 target_width = target_width + step
+
                 lines.append(line_text)
                 # Remove the line we just added from the text, and set up line_text for the next line
                 text = text[len(line_text):]
                 line_text = text
+
         # Actually draw the text
         current_y = 0
         img.resize(width=int(largest_line_width), height=int(max_height * 1.2))  # Add a little padding
@@ -60,6 +72,18 @@ def fit_ability_text(text, font_size, first_line_width, step, components):
             metrics = draw.get_font_metrics(img, line_text)
             current_x = int(((largest_line_width - metrics.text_width) / 2))
             current_y = int(current_y + metrics.text_height)
+            # Change the font to bold if we have a bracket
+            if has_bracket and "[" in line_text:
+                split_text = line_text.split("[")
+                # Draw the first part of the text if it exists
+                if split_text[0]:
+                    draw.text(current_x, current_y, split_text[0])
+                    # Recalculate our x position and set our font to bold for the rest of the lines
+                    current_x = int(current_x + draw.get_font_metrics(img, split_text[0]).text_width)
+                draw.font = str(components.AbilityTextBoldFont)
+                draw.font_weight = 700
+                has_bracket = False  # Skip further bracket checks, since we already set the font to bold
+                line_text = f"[{split_text[1]}"
             draw.text(current_x, current_y, line_text)
         draw(img)
         img.virtual_pixel = 'transparent'

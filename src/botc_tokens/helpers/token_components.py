@@ -28,6 +28,7 @@ class TokenComponents:
         "LeafRight.png",
         "SetupFlower.png",
         "AbilityText.*",
+        "AbilityTextBold.*",
         "ReminderText.*",
         "RoleName.*"
     ]
@@ -103,6 +104,7 @@ class TokenComponents:
         self.setup_flower = Image(filename=self.comp_path / "SetupFlower.png")
 
         self.AbilityTextFont = next(self.comp_path.glob("AbilityText.*"))
+        self.AbilityTextBoldFont = next(self.comp_path.glob("AbilityTextBold.*"))
         self.ReminderTextFont = next(self.comp_path.glob("ReminderText.*"))
         self.RoleNameFont = next(self.comp_path.glob("RoleName.*"))
 
