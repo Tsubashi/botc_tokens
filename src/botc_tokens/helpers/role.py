@@ -1,5 +1,5 @@
 """A class to represent a role in a script."""
-from pydantic.dataclasses import dataclass
+from dataclasses import dataclass
 
 
 @dataclass

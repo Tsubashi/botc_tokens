@@ -35,11 +35,6 @@ test = [
     "pytest-cov",
     "pypdf"
     ]
-api = [
-    "fastapi",
-    "pydantic",
-    ]
-
 
 [project.scripts]
 botc_tokens = "botc_tokens:__main__.main"
@@ -57,7 +52,7 @@ pythonpath = ["src"]
 [tool.coverage.run]
 source = ["src"]
 branch = true
-omit = ["src/botc_tokens/__version__.py", "src/botc_tokens/api/app.py"]
+omit = ["src/botc_tokens/__version__.py"]
 
 [tool.coverage.report]
 # Regexes for lines to exclude from consideration
