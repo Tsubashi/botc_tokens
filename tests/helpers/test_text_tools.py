@@ -32,3 +32,17 @@ def test_long_curved_text():
     text = "This is a long string that should be curved."
     img = text_tools.curved_text_to_image(text, "role", 100, TokenComponents())
     assert img.size == (72, 57)
+
+
+def test_inline_brackets():
+    """Bracketed should stay in line if they fit."""
+    text = "This is a test of [setup effects]"
+    img = text_tools.fit_ability_text(text, 12, 200, 10, TokenComponents())
+    assert img.size == (161, 16)
+
+
+def test_multiline_brackets(tmp_path):
+    """Brackets that need to be split should start their own line."""
+    text = "A [test of setup effects that most certainly cause wrapping before the bracket ends]"
+    img = text_tools.fit_ability_text(text, 12, 100, 10, TokenComponents())
+    assert img.height == 48  # Only check height on this one because GHA rounds differently than local.

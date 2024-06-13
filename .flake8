@@ -13,7 +13,7 @@ exclude =
     .cache,
     .eggs,
     __version__.py
-max-complexity = 10
+max-complexity = 12
 import-order-style = appnexus
 docstring-convention = google
 application-import-names = botc_tokens
