@@ -188,7 +188,7 @@ def test_update_custom_reminders_file(tmp_path):
     ]
     check_output_folder(output_path, expected_files=expected_files)
     with open(output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json", "r") as f:
-            j = json.load(f)
+        j = json.load(f)
     assert j["reminders"] == ["Custom reminder"]
     with open(output_path / "54 - Unreal Experimental" / "demon" / "Second.json", "r") as f:
         j = json.load(f)
@@ -199,7 +199,7 @@ def test_update_existing_icon_and_json(tmp_path):
     """Test when the icon and json file already exist."""
     output_path = tmp_path / "roles"
     output_path.mkdir()
-    icon_path = output_path / "54 - Unreal Experimental" /"townsfolk" / "First.png"
+    icon_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.png"
     icon_path.parent.mkdir(parents=True, exist_ok=True)
     icon_path.touch()
     json_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json"
