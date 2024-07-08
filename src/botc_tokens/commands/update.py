@@ -68,6 +68,10 @@ def run():
                     return 1
                 wiki.reminder_overrides = json_data
 
+        # Read in the forced_setup list
+        with open(data_dir / "forced_setup.json", "r") as f:
+            forced_setup = json.load(f)
+
         # Step through each role and grab the relevant data before adding it to the list.
         overall_progress.update(role_task, total=len(wiki.role_data))
         for role in wiki.role_data:
@@ -80,14 +84,20 @@ def run():
             team = role.get("team") if team is None else team
             team = "Unknown" if team is None else team
 
-            role_output_path = output_path / team
+            version = role.get("version", "Unknown")
+
+            role_output_path = output_path / version / team
             role_output_path.mkdir(parents=True, exist_ok=True)
             role_file = role_output_path / f"{format_filename(role['name'])}.json"
 
             found_role = process_role(role, role_file, wiki, step_progress, step_task, role_output_path)
 
-            # Write individual role json, if we found it
             if found_role is not None:
+                # Check if the role is in our forced_setup list
+                if found_role.name.lower() in forced_setup:
+                    found_role.affects_setup = True
+
+                # Write it out
                 step_progress.update(step_task, description=f"Writing role file for {found_role.name}")
                 with open(role_file, "w") as f:
                     f.write(json.dumps(asdict(found_role)))
@@ -148,45 +158,46 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path):
         except json.decoder.JSONDecodeError:
             print(f"[red]Error:[/] Could not read {file}. Skipping.")
             return None
+    else:
+        # Get info from the wiki
+        step_progress.update(step_task, description=f"Getting ability text for {name}")
+        found_role.ability = role.get("ability") if role.get("ability") else get_role_ability(name, wiki)
 
-    # Get info from the wiki
-    step_progress.update(step_task, description=f"Getting ability text for {name}")
-    found_role.ability = role.get("ability") if role.get("ability") else get_role_ability(name, wiki)
+        step_progress.update(step_task, description=f"Getting reminders for {name}")
+        found_role.reminders = role.get("reminders") if role.get("reminders") else get_role_reminders(name, wiki)
 
-    step_progress.update(step_task, description=f"Getting reminders for {name}")
-    found_role.reminders = role.get("reminders") if role.get("reminders") else get_role_reminders(name, wiki)
+        # Determine night actions
+        if role.get("firstNight"):
+            found_role.first_night = True
+        else:
+            found_role.first_night = True if role['id'] in wiki.night_data['firstNight'] else False
+
+        if role.get("otherNight"):
+            found_role.other_nights = True
+        else:
+            found_role.other_nights = True if role['id'] in wiki.night_data['otherNight'] else False
+
+        # Check if the role affects setup
+        if "[" in found_role.ability:
+            found_role.affects_setup = True
+
+        # Record home script and type
+        if not found_role.home_script:
+            home = role.get("version")
+            home = role.get("edition") if home is None else home
+            home = "Unknown" if home is None else home
+            found_role.home_script = home
+
+        if not found_role.type:
+            team = role.get("roleType")
+            team = role.get("team") if team is None else team
+            team = "Unknown" if team is None else team
+            found_role.type = team
 
     # Grab the icon, checking first to see if it exists
     step_progress.update(step_task, description=f"Getting icon for {name}")
     get_role_icon(found_role, role, role_output_path, wiki)
 
-    # Determine night actions
-    if role.get("firstNight"):
-        found_role.first_night = True
-    else:
-        found_role.first_night = True if role['id'] in wiki.night_data['firstNight'] else False
-
-    if role.get("otherNight"):
-        found_role.other_nights = True
-    else:
-        found_role.other_nights = True if role['id'] in wiki.night_data['otherNight'] else False
-
-    # Check if the role affects setup
-    if "[" in found_role.ability:
-        found_role.affects_setup = True
-
-    # Record home script and type
-    if not found_role.home_script:
-        home = role.get("version")
-        home = role.get("edition") if home is None else home
-        home = "Unknown" if home is None else home
-        found_role.home_script = home
-
-    if not found_role.type:
-        team = role.get("roleType")
-        team = role.get("team") if team is None else team
-        team = "Unknown" if team is None else team
-        found_role.type = team
     return found_role
 
 

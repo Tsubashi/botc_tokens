@@ -61,11 +61,11 @@ def default_expected_files():
     """Make a list of all the files we expect to be output by default."""
     expected_files = []
     for i in range(1, 9):
-        expected_files.append(str(Path("999 - Tests") / "Not-In-Play" / f"{i}.png"))
-        expected_files.append(str(Path("999 - Tests") / "Not-In-Play" / f"{i}-Reminder-Reminder_{i}.png"))
+        expected_files.append(str(Path("Not-In-Play") / f"{i}.png"))
+        expected_files.append(str(Path("Not-In-Play") / f"{i}-Reminder-Reminder_{i}.png"))
     # Add the space role
-    expected_files.append(str(Path("999 - Tests") / "Not-In-Play" / "Space_Role.png"))
-    expected_files.append(str(Path("999 - Tests") / "Not-In-Play" / "Space_Role-Reminder-This_has_spaces.png"))
+    expected_files.append(str(Path("Not-In-Play") / "Space_Role.png"))
+    expected_files.append(str(Path("Not-In-Play") / "Space_Role-Reminder-This_has_spaces.png"))
     return expected_files
 
 
@@ -103,7 +103,7 @@ def test_existing_token(input_path, default_expected_files):
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Create a token
-    token = output_path / "999 - Tests" / "Not-In-Play" / "1.png"
+    token = output_path / "Not-In-Play" / "1.png"
     token.parent.mkdir(parents=True, exist_ok=True)
     fake_token_content = "Not a real token, but good enough to fool the tool."
     with open(token, "w") as f:
@@ -112,7 +112,7 @@ def test_existing_token(input_path, default_expected_files):
     _run_cmd([str(input_path), "-o", str(output_path)])
 
     # Check that the tokens were created, but no reminders were created for the existing role token
-    reminder = str(Path("999 - Tests") / "Not-In-Play" / "1-Reminder-Reminder_1.png")
+    reminder = str(Path("Not-In-Play") / "1-Reminder-Reminder_1.png")
     default_expected_files.remove(reminder)
     check_output_folder(output_path, expected_files=default_expected_files)
 
@@ -128,12 +128,12 @@ def test_duplicate_reminder(input_path):
 
     # Add an existing reminder token image, without a corresponding role token image
     # This will cause the utility to believe that there are multiple of the same reminder
-    reminder = output_path / "999 - Tests" / "Not-In-Play" / "1-Reminder-Reminder_1.png"
+    reminder = output_path / "Not-In-Play" / "1-Reminder-Reminder_1.png"
     reminder.parent.mkdir(parents=True, exist_ok=True)
     reminder.touch()
 
     _run_cmd([str(input_path), "-o", str(output_path)])
-    assert (output_path / "999 - Tests" / "Not-In-Play" / "1-Reminder-Reminder_1-2.png").exists()
+    assert (output_path / "Not-In-Play" / "1-Reminder-Reminder_1-2.png").exists()
 
 
 def test_componets_error_handling(input_path, capsys):
@@ -170,9 +170,9 @@ def test_diameter_options(input_path, default_expected_files):
 
     # Check that the reminder tokens were created with the correct size
     for i in range(1, 9):
-        token = output_path / "999 - Tests" / "Not-In-Play" / f"{i}.png"
+        token = output_path / "Not-In-Play" / f"{i}.png"
         with Image(filename=token) as img:
             assert img.size == (200, 200)
-        reminder = output_path / "999 - Tests" / "Not-In-Play" / f"{i}-Reminder-Reminder_{i}.png"
+        reminder = output_path / "Not-In-Play" / f"{i}-Reminder-Reminder_{i}.png"
         with Image(filename=reminder) as img:
             assert img.size == (100, 100)

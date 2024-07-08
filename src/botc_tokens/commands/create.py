@@ -72,7 +72,7 @@ def run():
         for role in roles:
             step_progress.update(step_task, description=f"Creating Token for: {role.name}")
             # Make sure our target directory exists
-            role_output_path = output_path / role.home_script / role.type
+            role_output_path = output_path / role.type
             role_output_path.mkdir(parents=True, exist_ok=True)
 
             # Skip if the token already exists
