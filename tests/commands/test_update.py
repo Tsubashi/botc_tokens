@@ -28,7 +28,7 @@ def web_mock():
     with mock.patch("botc_tokens.helpers.wiki_soup.urlopen") as wiki_soup_urlopen_mock:
         wiki_soup_urlopen_mock.return_value.__enter__.return_value.read = wiki_read_mock
         wiki_soup_urlopen_mock.return_value = wiki_read_mock
-        # Make sure to patch out urlretrieve, as we don't want to actually download the images
+        # Make sure to patch it in the update command as well, since we don't want to actually download the images
         with mock.patch("botc_tokens.commands.update.urlopen") as update_urlopen_mock:
             update_urlopen_mock.return_value.__enter__.return_value.read = image_read_mock
             update_urlopen_mock.return_value = image_read_mock
@@ -321,3 +321,19 @@ def test_bad_format_custom_list(tmp_path, capsys):
             update.run()
     output = capsys.readouterr()
     assert "Could not parse" in output.out
+
+
+def test_forced_setup(tmp_path, capsys):
+    """Roles are modified to affect setup if the show up in the force list."""
+    output_path = tmp_path / "roles"
+    with mock.patch(
+            "sys.argv",
+            ["botc_tokens", "update", "--output", str(output_path), "--script-filter", "99 - Ignored"]
+    ):
+        with web_mock():
+            update.run()
+
+    # Verify that it worked
+    with open(output_path / "99 - Ignored" / "outsider" / "Third.json", "r") as f:
+        j = json.load(f)
+    assert j["affects_setup"] is True
