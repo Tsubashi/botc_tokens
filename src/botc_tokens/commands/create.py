@@ -141,13 +141,24 @@ def find_roles_from_json(json_files):
     """Load each json file and return the roles."""
     roles = []
     for json_file in json_files:
-        with open(json_file, "r") as f:
-            data = json.load(f)
-        # Rewrite the icon path to be relative to our working directory
-        data['icon'] = str(json_file.parent / data.get('icon'))
-        role = Role(data.get('name', "Unknown"))
-        for att in dir(role):
-            if att in data:
-                setattr(role, att, data[att])
-        roles.append(role)
+        try:
+            with open(json_file, "r") as f:
+                data = json.load(f)
+            # Rewrite the icon path to be relative to our working directory
+            data['icon'] = str(json_file.parent / data.get('icon'))
+            role = Role(data.get('name', "Unknown"))
+            for att in dir(role):
+                if att in data:
+                    setattr(role, att, data[att])
+            roles.append(role)
+        except json.JSONDecodeError as e:
+            print(f"[red]Error:[/][bold] Could not decode JSON file:[/] {json_file}")
+            print(f"- {str(e)}")
+        except UnicodeDecodeError as e:
+            print(f"[red]Error:[/][bold] Could not decode JSON file: {json_file}")
+            print(f"- {str(e)}")
+        except Exception as e:
+            print(f"[red]Error:[/][bold] Unknown error loading JSON file: {json_file}")
+            print(f"- {str(e)}")
+
     return roles
