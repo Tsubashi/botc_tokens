@@ -182,17 +182,15 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path):
             found_role.affects_setup = True
 
         # Record home script and type
-        if not found_role.home_script:
-            home = role.get("version")
-            home = role.get("edition") if home is None else home
-            home = "Unknown" if home is None else home
-            found_role.home_script = home
+        home = role.get("version")
+        home = role.get("edition") if home is None else home
+        home = "Unknown" if home is None else home
+        found_role.home_script = home
 
-        if not found_role.type:
-            team = role.get("roleType")
-            team = role.get("team") if team is None else team
-            team = "Unknown" if team is None else team
-            found_role.type = team
+        team = role.get("roleType")
+        team = role.get("team") if team is None else team
+        team = "Unknown" if team is None else team
+        found_role.type = team
 
     # Grab the icon, checking first to see if it exists
     step_progress.update(step_task, description=f"Getting icon for {name}")

@@ -176,3 +176,31 @@ def test_diameter_options(input_path, default_expected_files):
         reminder = output_path / "Not-In-Play" / f"{i}-Reminder-Reminder_{i}.png"
         with Image(filename=reminder) as img:
             assert img.size == (100, 100)
+
+
+def test_decoding_errors(input_path, capsys):
+    """Alert the user if there is an error decoding the JSON files."""
+    output_path = input_path.parent / "output"
+
+    # Create a file with bad JSON
+    bad_json = input_path / "bad.json"
+    bad_json.write_text("This is not JSON")
+
+    _run_cmd([str(input_path), "-o", str(output_path)])
+
+    output = capsys.readouterr()
+    assert "Could not decode JSON file" in output.out
+
+    # Simulate a unicode failure
+    with patch("botc_tokens.commands.create.json.load") as mock:
+        mock.side_effect = UnicodeDecodeError("utf-8", b"", 0, 1, "Bad file")
+        _run_cmd([str(input_path), "-o", str(output_path)])
+    output = capsys.readouterr()
+    assert "Could not decode JSON file:" in output.out
+
+    # Simulate a generic failure
+    with patch("botc_tokens.commands.create.json.load") as mock:
+        mock.side_effect = Exception("Bad file")
+        _run_cmd([str(input_path), "-o", str(output_path)])
+    output = capsys.readouterr()
+    assert "Unknown error loading JSON file:" in output.out

@@ -174,3 +174,16 @@ def test_disallowed_reminders():
         wiki_soup.reminders["First"] = ["YOU ARE"]
         reminders = wiki_soup.get_reminders("First")
         assert reminders == ["YOU ARE"]
+
+
+def test_spirit_of_ivory():
+    """Ensure Spirit_Of_Ivory is transformed to Spirit_of_Ivory."""
+    response_list = testhelpers.webmock_list.copy()
+    fp = StringIO()  # This is necessary to avoid an issue when deconstructing urllib.error.HTTPError
+    response_list[2] = urllib.error.HTTPError("test_url", 404, "Not Found", "hdrs", fp)
+    with web_mock(response_list):
+        wiki_soup = WikiSoup()
+        wiki_soup.load_from_web()
+        with pytest.raises(RuntimeError) as e:
+            wiki_soup._get_wiki_soup("Spirit Of Ivory")
+        assert "Could not find role Spirit_of_Ivory" in str(e.value)
