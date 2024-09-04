@@ -81,7 +81,6 @@ def fit_ability_text(text, font_size, first_line_width, step, components):
                     # Recalculate our x position and set our font to bold for the rest of the lines
                     current_x = int(current_x + draw.get_font_metrics(img, split_text[0]).text_width)
                 draw.font = str(components.AbilityTextBoldFont)
-                draw.font_weight = 700
                 has_bracket = False  # Skip further bracket checks, since we already set the font to bold
                 line_text = f"[{split_text[1]}"
             draw.text(current_x, current_y, line_text)

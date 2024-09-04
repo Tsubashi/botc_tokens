@@ -36,7 +36,9 @@ class WikiSoup:
         # Check if we have already seen this role
         role_name = role_name.replace(" ", "_")
         if role_name not in self.wiki_soups:
-            role_name = role_name.replace("Of", "of")  # Fixes Spirit Of Ivory
+            # Make a special check for Spirit of Ivory, since it has a different capitalization scheme.
+            if role_name == "Spirit_Of_Ivory":
+                role_name = "Spirit_of_Ivory"
             url = f"https://wiki.bloodontheclocktower.com/{role_name}"
             try:
                 html = urlopen(url).read()
