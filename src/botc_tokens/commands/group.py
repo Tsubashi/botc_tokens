@@ -31,11 +31,14 @@ def _parse_args():
     output_dir_default = 'printables'
     parser.add_argument('-o', '--output-dir', type=str, default=output_dir_default,
                         help=f"Name of the directory in which to output the sheets. (Default: {output_dir_default})")
+    parser.add_argument("--bleed", type=int, default=12,
+                        help="The bleed (in pixels) expected, which will be trimmed in the cutting file.")
+    parser.add_argument("--cutting", action="store_true", help="Write cutting files and mark group sheet.")
     parser.add_argument('--fixed-role-size', type=int, default=None,
                         help="The radius (in pixels) to allocate per role tokens. "
                              "(Default: The first token's largest dimension)")
     parser.add_argument('--fixed-reminder-size', type=int, default=None,
-                        help="The radius (in pixels) to allocate per reminder tokens. "
+                        help="The radius (in pixels) to allocate per reminder tokens."
                              "(Default: The first token's largest dimension)")
     margin_default = 74
     parser.add_argument('--margin-horizontal', type=int, default=margin_default,
@@ -113,24 +116,28 @@ def run():
         role_page = Printable(
             output_dir,
             basename="roles",
+            bleed=args.bleed,
+            cutting=args.cutting,
             page_width=args.paper_width,
             page_height=args.paper_height,
             margin_vertical=args.margin_vertical,
             margin_horizontal=args.margin_horizontal,
             padding=args.padding,
             diameter=args.fixed_role_size,
-            close_packing=not args.grid
+            close_packing=not args.grid,
         )
         reminder_page = Printable(
             output_dir,
             basename="reminders",
+            bleed=args.bleed,
+            cutting=args.cutting,
             page_width=args.paper_width,
             page_height=args.paper_height,
             margin_vertical=args.margin_vertical,
             margin_horizontal=args.margin_horizontal,
             padding=args.padding,
             diameter=args.fixed_reminder_size,
-            close_packing=not args.grid
+            close_packing=not args.grid,
         )
         process_tokens(duplicates, duplicates_overrides, reminder_images, reminder_page, role_images, role_page, script,
                        step_progress, step_task)

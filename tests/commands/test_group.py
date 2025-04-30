@@ -8,6 +8,7 @@ from unittest.mock import patch
 # Third Party`
 from pypdf import PdfReader
 import pytest
+import svg
 from testhelpers import check_output_folder
 from wand.image import Image
 
@@ -331,3 +332,36 @@ def test_vertical_margin(example_script, token_dir, tmp_path):
     with open(output_path / "roles.pdf", "rb") as f:
         reader = PdfReader(f)
         assert len(reader.pages) == 3
+
+
+def test_cutting_file(example_script, token_dir, tmp_path):
+    """Test that the cutting file is created."""
+    output_path = tmp_path / "output"
+    _run_cmd([
+        str(example_script),
+        "--token-dir", str(token_dir),
+        "-o", str(output_path),
+        "--paper-width", "256",
+        "--paper-height", "256",
+        "--padding", "0",
+        "--margin-horizontal", "0",
+        "--margin-vertical", "0",
+        "--fixed-role-size", "128",
+        "--fixed-reminder-size", "64",
+        "--cutting",
+        "--bleed", "24"
+    ])
+
+    assert (output_path / "cutting" / "roles_cutting_page_1.svg").exists()
+    assert (output_path / "cutting" / "reminders_cutting_page_1.svg").exists()
+    expected = svg.SVG(
+        width=256, height=256,
+        elements=[
+            svg.Circle(cx=64, cy=64, r=40, stroke="black", stroke_width="5", fill="transparent"),
+            svg.Circle(cx=192, cy=64, r=40, stroke="black", stroke_width="5", fill="transparent"),
+            svg.Circle(cx=128, cy=174, r=40, stroke="black", stroke_width="5", fill="transparent"),
+        ]
+    )
+    with open(output_path / "cutting" / "roles_cutting_page_1.svg", "r") as f:
+        cutting = f.read()
+        assert cutting == str(expected)

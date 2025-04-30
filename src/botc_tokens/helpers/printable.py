@@ -4,6 +4,8 @@ import math
 from pathlib import Path
 
 # Third Party
+import svg
+from wand.drawing import Color, Drawing
 from wand.image import Image
 
 # Application Specific
@@ -19,9 +21,11 @@ class Printable:
             basename="page",
             margin_horizontal=74,
             margin_vertical=74,
+            bleed=12,  # 12px = 1mm @ 300dpi
             padding=0,
             diameter=None,
-            close_packing=True
+            close_packing=True,
+            cutting=False
     ):
         """Create a new printable object.
 
@@ -33,10 +37,12 @@ class Printable:
             margin_horizontal (int): The margin (in pixels) between the left/right edge of the paper and the tokens.
             margin_vertical (int): The margin (in pixels) between the top/bottom of the paper and the tokens.
             padding (int): The padding (in pixels) between tokens.
+            bleed (int): The bleed (in pixels) expected, which will be trimmed in the cutting file.
             diameter (int): The diameter (in pixels) to allocate per token. If unspecified, the first token's largest
                 dimension will be used.
             close_packing (bool): Whether to use close packing of circles. If True, the tokens will be arranged in a
                 hexagonal pattern. If False, the tokens will be arranged in a grid.
+            cutting (bool): Whether to create cutting files.
         """
         # 8.5"x11" at 300dpi is 2550 x 3300px
         # Subtracting 74px from each side to account for printer margins leaves our default of 2402 x 3152px
@@ -54,8 +60,12 @@ class Printable:
         self.margin_horizontal = margin_horizontal
         self.margin_vertical = margin_vertical
         self.padding = padding
+        self.bleed = bleed
         self.diameter = diameter
         self.close_packing = close_packing
+        self.partial_page_token_count = 0
+        self.cutting = svg.SVG(width=self.page_width, height=self.page_height, elements=[]) if cutting else None
+        self.cutting_pages = []
 
         self.save_page()  # Initializes the first page
 
@@ -68,13 +78,43 @@ class Printable:
                 height=self.page_height + (self.margin_vertical * 2)
             )
             new_page.composite(self.page, left=self.margin_horizontal, top=self.margin_vertical)
+
+            # If we are cutting, add and alignment cross to the top left and bottom right corners
+            if self.cutting is not None:
+                cross_size = max(self.page_width, self.page_height) // 25
+                cross_middle = cross_size // 2
+                cross = Image(width=cross_size, height=cross_size)
+                with Drawing() as draw:
+                    draw.stroke_color = Color('black')
+                    draw.stroke_width = cross_size // 10
+                    draw.line((0, cross_middle), (cross_size, cross_middle))  # Horizontal line
+                    draw.line((cross_middle, 0), (cross_middle, cross_size))  # Vertical line
+                    draw(cross)
+                new_page.composite(  # Top Left
+                    cross,
+                    left=self.margin_horizontal - cross_middle,
+                    top=self.margin_vertical - cross_middle
+                )
+                new_page.composite(  # Bottom Right
+                    cross,
+                    left=self.margin_horizontal + self.page_width - cross_middle,
+                    top=self.margin_vertical + self.page_height - cross_middle
+                )
+            # Replace the current page with the newly composited page
             self.page = new_page
 
             # Save the page to the document, reset our cursors, and increment the page number
             self.document.sequence.append(self.page)
             self.current_x, self.current_y = 0, 0
+            self.partial_page_token_count = 0
             self.page_number += 1
             self.next_row_should_be_inset = False
+
+            # Save and reset the cutting file if requested
+            if self.cutting is not None:
+                self.cutting_pages.append(self.cutting)
+                self.cutting = svg.SVG(width=self.page_width, height=self.page_height, elements=[])
+
         self.page = Image(width=self.page_width, height=self.page_height)
 
     def write(self):
@@ -82,8 +122,16 @@ class Printable:
         # Save the last page if it has content
         if self.current_x != 0 or self.current_y != 0:
             self.save_page()
+        # Save the full pdf
         if self.document.sequence:
             self.document.save(filename=self.output_dir / f"{self.basename}.pdf", adjoin=True)
+        # Save the cutting files if requested
+        if self.cutting is not None:
+            cutting_folder = self.output_dir / "cutting"
+            cutting_folder.mkdir(parents=True, exist_ok=True)
+            for i, page in enumerate(self.cutting_pages):
+                with open(cutting_folder / f"{self.basename}_cutting_page_{i + 1}.svg", "w") as f:
+                    f.write(str(page))
 
     def close(self):
         """Close all Wand objects."""
@@ -99,6 +147,19 @@ class Printable:
             if token.width > self.diameter or token.height > self.diameter:
                 token.resize(width=self.diameter, height=self.diameter)
             self.page.composite(token, left=int(self.current_x), top=int(self.current_y))
+            # If we are cutting, add the token to the cutting file
+            if self.cutting:
+                cutting_radius = (self.diameter // 2) - self.bleed
+                # Find the center x and y of the token
+                cx = int(self.current_x + self.diameter // 2)
+                cy = int(self.current_y + self.diameter // 2)
+                token_cutline = svg.Circle(
+                    cx=cx, cy=cy, r=cutting_radius,
+                    stroke="black",
+                    fill="transparent",
+                    stroke_width=5,
+                )
+                self.cutting.elements.append(token_cutline)
             self.current_x += self.diameter + self.padding
             # Check bounds
             if self.current_x + self.diameter > self.page.width:
