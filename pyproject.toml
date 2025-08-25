@@ -35,9 +35,13 @@ test = [
     "pytest-cov",
     "pypdf"
     ]
+gui = [
+    "PySide6 ~= 6.9.0"
+    ]
 
 [project.scripts]
 botc_tokens = "botc_tokens:__main__.main"
+botc_tokens_gui = "botc_tokens.gui:__main__.main"
 
 [tool.setuptools_scm]
 write_to = "src/botc_tokens/__version__.py"
