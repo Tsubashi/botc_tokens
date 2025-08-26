@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = [
+dev = [
     "flake8",
     "flake8-bugbear",
     "flake8-docstrings",
