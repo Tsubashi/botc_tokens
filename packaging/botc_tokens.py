@@ -12,7 +12,7 @@
 #   nuitka-project-if: os.getenv("DEBUG_COMPILATION", "no") == "yes":
 #     nuitka-project: --windows-console-mode=hide
 #   nuitka-project-else:
-#     nuitka-project: --windows-console-mode=disable
+#     nuitka-project: --windows-console-mode=disabled
 
 # The PySide6 plugin covers qt-plugins
 # nuitka-project: --enable-plugin=pyside6

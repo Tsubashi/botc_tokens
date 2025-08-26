@@ -1,0 +1,59 @@
+name: Build Standalone Application via Nuitka
+on:
+  push:
+    branches: [ "stable", "gui" ]
+jobs:
+  build:
+     strategy:
+        matrix:
+          os: [macos-latest, ubuntu-latest, windows-latest]
+        fail-fast: false
+
+     runs-on: ${{ matrix.os }}
+
+     steps:
+        - name: Check-out repository
+          uses: actions/checkout@v5
+          with:
+           fetch-depth: 0
+
+        - name: Setup Python
+          uses: actions/setup-python@v5
+          with:
+           python-version: '3.12'
+           cache: 'pip'
+
+        - name: Install the App
+          run: |
+            pip install -e .[gui]
+            pip install imageio
+
+        - name: Get Version
+          run: |
+            VERSION=$(python -c 'from botc_tokens.__version__ import version_tuple as vt; print(f"{int(vt[0])}.{int(vt[1])}.{int(vt[2])}")')
+            echo "VERSION=${VERSION}" >> $GITHUB_ENV
+            if [ -z "${VERSION}" ]; then
+              echo "Didn't get a VERSION"
+              exit 1
+            fi
+            echo "Got version: ${VERSION}"
+          shell: bash
+
+        - name: Build Executable with Nuitka
+          uses: Nuitka/Nuitka-Action@main
+          with:
+           nuitka-version: main
+           script-name: packaging/botc_tokens_gui.py
+           mode: app
+           file-version: ${{ env.VERSION }}
+           product-version: ${{ env.VERSION }}
+
+        - name: Upload Artifacts
+          uses: actions/upload-artifact@v4
+          with:
+           name: ${{ runner.os }} Build
+           path: | # match what's created for the 3 OSes
+              build/*.exe
+              build/*.bin
+              build/*.app/**/*
+           include-hidden-files: true
