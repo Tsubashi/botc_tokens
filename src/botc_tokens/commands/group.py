@@ -154,12 +154,28 @@ def process_tokens(duplicates, duplicates_overrides, reminder_images, reminder_p
     for role in script:
         if isinstance(role, dict):
             continue  # Skip metadata
-        role_name = role.lower().strip()
+        # Remove underscores and make lowercase for matching
+        role_name = role.lower().replace("_", "").strip()
         step_progress.update(step_task, description=f"Adding {role_name.title()}")
-        # See if we have tokens for this role
-        role_file = next((t for t in role_images if role_name == t.stem.lower().replace("'", "")), None)
-        reminder_regex = re.compile(f"{role_name}-reminder.*")
-        reminder_files = (t for t in reminder_images if reminder_regex.match(t.stem.lower().replace("'", "")))
+
+        # See if we have a matching token image
+        role_file = None
+        for imgfile in role_images:
+            # Remove underscores, apostrophes, and make lowercase for matching
+            img_name = imgfile.stem.lower().replace("'", "").replace("_", "")
+            if role_name == img_name:
+                role_file = imgfile
+                break
+
+        # Find any matching reminder images
+        reminder_files = []
+        for reminder_img in reminder_images:
+            # Remove underscores, apostrophes, and make lowercase for matching
+            r_img_name = reminder_img.stem.lower().replace("'", "").replace("_", "")
+            reminder_regex = re.compile(f"{role_name}-reminder.*")
+            if reminder_regex.match(r_img_name):
+                reminder_files.append(reminder_img)
+
         if not role_file:
             print(f"[yellow]Warning:[/] No token found for {role_name}")
             continue
