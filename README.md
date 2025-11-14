@@ -41,8 +41,21 @@ will only download assets that are not already present in the local folder. We h
 resulting entries, especially the reminder token section. While the utility does its best to guess, it isn't perfect.
 If you already know the reminder tokens, you can create a JSON file for the utility to use. See the 
 [example repository](https://github.com/Tsubashi/botc_tokens-Examples) for an example of the format.
+
+**Please note:** recent changes in the script tool crashed wiki
+download, so we recommend using the `--use-built-in` option in order generate base game roles as of date 2025-11.
 ```bash
-botc_tokens update --output-dir /path/to/inputs --reminders /path/to/reminders.json
+botc_tokens update --use-built-in --output-dir /path/to/inputs --reminders /path/to/reminders.json
+```
+
+### Updating from bloodstar url
+If you have an already existing bloodstar script and you want to create tokens for your in-person games, you can use
+the `update` command with `--bloodstar-url` option to download your characters in the tool's format.
+The tool tries to convert the tokens as per our best knowledge. Please keep in mind, that the results are best
+when the bloodstar script is filled with setup, first/other nights reminder text and reminder tokens.
+Visit [bloodstar](https://bloodstar.xyz) to start your editing there.
+```bash
+botc_tokens update --output-dir /path/to/inputs --bloodstar-url https://www.bloodstar.xyz/p/TheBeardedDan/Krampus/script.json?9712244e
 ```
 
 ### Creating tokens
