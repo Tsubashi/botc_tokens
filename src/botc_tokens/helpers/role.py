@@ -7,6 +7,7 @@ class Role:
     """A role in a script.
 
     Attributes:
+        id: The id of the role.
         name: The name of the role.
         ability: The description of the role.
         type: The type of the role (Townsfolk, Outsider, Minion, Demon, or Traveller).
@@ -16,6 +17,7 @@ class Role:
         icon: The filename of the icon.
         home_script: The name of the script in which the role is found.
     """
+    id: str
     name: str
     ability: str = None
     type: str = None

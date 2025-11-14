@@ -72,7 +72,8 @@ def run():
         overall_task = overall_progress.add_task("Creating Tokens...", total=len(roles))
         step_task = step_progress.add_task("Reading roles...")
         for role in roles:
-            role_slug = ''.join(e for e in role.name.lower() if e.isalnum())
+            role_base = role.id if role.id is not None else role.name
+            role_slug = ''.join(e for e in role_base.lower() if e.isalnum())
             step_progress.update(step_task, description=f"Creating Token for: {role.name}")
             # Make sure our target directory exists
             role_output_path = output_path / str(role.home_script) / str(role.type)
@@ -98,7 +99,7 @@ def run():
             reminder_icon.transform(resize=f"{target_width}x{target_height}")
             for reminder_text in role.reminders:
                 step_progress.update(step_task, description=f"Creating Token for: {role.name}")
-                reminder_name = format_filename(f"{role_slug}-Reminder-{reminder_text}")
+                reminder_name = role_slug + format_filename(f"-Reminder-{reminder_text}")
                 reminder_output_path = role_output_path / f"{reminder_name}.png"
                 duplicate_counter = 1
                 while reminder_output_path.exists():
@@ -135,7 +136,7 @@ def load_components(component_package):
         print(f"\n[red]Error:[/][bold] Could not load component: {str(e)}[/]")
         return None
     except BadZipFile:
-        print(f"\n[red]Error:[/][bold] Could not load components from '{component_package}' it does not appear to be a "
+        print(f"\n[red]Error:[/][bold] Could not load components from '{component_package}' it does not appear to be a \n"
               "valid components package.[/]")
         return None
     except FileNotFoundError as e:
@@ -155,7 +156,7 @@ def find_roles_from_json(json_files):
             icon = data.get('icon')
             if icon:
                 data['icon'] = str(json_file.parent / str(data.get('icon')))
-            role = Role(data.get('name', "Unknown"))
+            role = Role(id=data.get('id'), name=data.get('name', "Unknown"))
             for att in dir(role):
                 if att in data:
                     setattr(role, att, data[att])

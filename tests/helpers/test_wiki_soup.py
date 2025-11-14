@@ -34,7 +34,7 @@ def test_wiki_soup_creation():
         wiki_soup.load_from_web()
         assert wiki_soup
         assert wiki_soup.role_data[0]["name"] == "First"
-        assert wiki_soup.night_data["firstNight"] == ["DUSK", "First"]
+        assert wiki_soup.night_data["firstNight"] == ["DUSK", "first"]
 
 
 def test_wiki_soup_get_ability_text():
