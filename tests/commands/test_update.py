@@ -87,7 +87,7 @@ def test_update_command(tmp_path):
 def test_update_command_built_in(tmp_path):
     """Test the update command with built-in roles."""
     output_path = tmp_path / "roles"
-    _run_cmd(["--output", str(output_path), "--use-built-in"])
+    _run_cmd(["--output", str(output_path), "--use-built-in", "--use-playtest"])
 
     # Verify that it worked
     expected_folders = [

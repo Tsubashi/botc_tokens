@@ -128,7 +128,7 @@ def run():
 
             found_role = \
                 process_role(role, role_file, wiki, step_progress, step_task, role_output_path,
-                             len(args.bloodstar_url) > 0 or args.use_built_in, args.use_playtest or args.use_built_in)
+                             len(args.bloodstar_url) > 0 or args.use_built_in, args.use_playtest)
 
             if found_role is not None:
                 # Check if the role is in our forced_setup list
