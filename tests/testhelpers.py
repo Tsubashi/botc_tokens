@@ -50,11 +50,39 @@ def expect_exit_with_output(capsys, expected_text, expected_code=1):
     assert (expected_text in output.out) or (expected_text in output.err)
 
 
+webmock_bloodstar = [
+    # Bloodstar url sample response
+    b"""[
+  {
+    "id": "_meta",
+    "name": "Test"
+  },
+  {
+    "id": "first",
+    "image": "https://www.bloodstar.xyz/first.png",
+    "reminders": [
+      "No ability"
+    ],
+    "name": "First",
+    "team": "townsfolk",
+    "ability": "First ability"
+  },
+  {
+    "id": "second",
+    "image": "https://www.bloodstar.xyz/second.png",
+    "name": "Second",
+    "team": "demon",
+    "ability": "Second ability",
+    "otherNightReminder": "reminder text"
+  }
+]"""
+]
+
 webmock_list = [
     # The first call is for the role data
     b"""[
          {
-            "id": "First",
+            "id": "first",
             "name": "First",
             "roleType": "townsfolk",
             "print": "unused",
@@ -63,7 +91,7 @@ webmock_list = [
             "isDisabled": false
           },
           {
-            "id": "Second",
+            "id": "second",
             "name": "Second",
             "roleType": "demon",
             "print": "unused",
@@ -72,7 +100,7 @@ webmock_list = [
             "isDisabled": false
           },
           {
-            "id": "Third",
+            "id": "third",
             "name": "Third",
             "roleType": "outsider",
             "print": "unused",
@@ -85,12 +113,12 @@ webmock_list = [
     b"""{
           "firstNight": [
             "DUSK",
-            "First"
+            "first"
           ],
           "otherNight": [
             "DUSK",
-            "First",
-            "Second"
+            "first",
+            "second"
           ]
         }""",
     # The third call is for the first role's wiki page
@@ -123,29 +151,32 @@ webmock_list = [
 
 
 expected_role_json = {
-    "First.json": {
+    "first.json": {
+        'id': 'first',
         'ability': 'First ability description',
         'affects_setup': False,
         'first_night': True,
         'home_script': '54 - Unreal Experimental',
-        'icon': 'First.png',
+        'icon': 'first.png',
         'name': 'First',
         'other_nights': True,
         'reminders': [],
         'type': 'townsfolk'
     },
-    "Second.json": {
+    "second.json": {
+        'id': 'second',
         'ability': 'Second ability description [Affects Setup]',
         'affects_setup': True,
         'first_night': False,
         'home_script': '54 - Unreal Experimental',
-        'icon': 'Second.png',
+        'icon': 'second.png',
         'name': 'Second',
         'other_nights': True,
         'reminders': ["SECOND REMINDER"],
         'type': 'demon'
     },
-    "Third.json": {
+    "third.json": {
+        "id": "third",
         "name": "Third",
         "ability": "",
         "type": "outsider",

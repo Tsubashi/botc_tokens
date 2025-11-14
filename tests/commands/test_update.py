@@ -55,6 +55,19 @@ def check_expected_json(input_file_path):
             j = json.load(f)
         assert j == expected_role_json.get(input_file_path.name)
 
+def check_expected_folder(input_folder_path):
+    """Ensure each folder exists and, if it is the same amount of json file, and png file is in it."""
+    assert input_folder_path.is_dir()
+    json_cnt = 0
+    png_cnt = 0
+    for item in input_folder_path.iterdir():
+        if item.is_file():
+            if item.suffix == '.json':
+                json_cnt += 1
+            elif item.suffix == '.png':
+                png_cnt += 1
+    assert json_cnt == png_cnt
+
 
 def test_update_command(tmp_path):
     """Test the update command in its normal configuration."""
@@ -63,11 +76,58 @@ def test_update_command(tmp_path):
 
     # Verify that it worked
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
-        str(Path("99 - Ignored") / "outsider" / "Third.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.png"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.png"),
+        str(Path("99 - Ignored") / "outsider" / "third.json"),
+    ]
+    check_output_folder(output_path, expected_files=expected_files, check_func=check_expected_json)
+
+def test_update_command_built_in(tmp_path):
+    """Test the update command with built-in roles."""
+    output_path = tmp_path / "roles"
+    _run_cmd(["--output", str(output_path), "--use-built-in"])
+
+    # Verify that it worked
+    expected_folders = [
+        str(Path("bmr") / "demon"),
+        str(Path("bmr") / "minion"),
+        str(Path("bmr") / "outsider"),
+        str(Path("bmr") / "townsfolk"),
+        str(Path("bmr") / "traveller"),
+        str(Path("tb") / "demon"),
+        str(Path("tb") / "minion"),
+        str(Path("tb") / "outsider"),
+        str(Path("tb") / "townsfolk"),
+        str(Path("tb") / "traveller"),
+        str(Path("snv") / "demon"),
+        str(Path("snv") / "minion"),
+        str(Path("snv") / "outsider"),
+        str(Path("snv") / "townsfolk"),
+        str(Path("snv") / "traveller"),
+        str(Path("carousel") / "demon"),
+        str(Path("fabled") / "fabled"),
+        str(Path("loric") / "loric")
+    ]
+    for folder in expected_folders:
+        check_expected_folder(output_path / folder)
+
+def test_update_command_bloodstar_url(tmp_path):
+    """Test the update command with bloodstar url roles."""
+    reminders_file = tmp_path / "reminders.json"
+    with open(reminders_file, "w") as f:
+        json.dump({"Second": ["SECOND REMINDER"]}, f)
+    output_path = tmp_path / "roles"
+    _run_cmd(["--output", str(output_path), "--bloodstar-url", "https://bloodstar.xyz/p/user/script/script.json?1", "--reminders", str(reminders_file)])
+
+    # Verify that it worked
+    expected_files = [
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.png"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.png"),
+        str(Path("99 - Ignored") / "outsider" / "third.json"),
     ]
     check_output_folder(output_path, expected_files=expected_files, check_func=check_expected_json)
 
@@ -76,20 +136,20 @@ def test_update_existing_folder(tmp_path):
     """Test when a file in the output folder already exists."""
     output_path = tmp_path / "roles"
     output_path.mkdir()
-    first_file = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json"
+    first_file = output_path / "54 - Unreal Experimental" / "townsfolk" / "first.json"
     first_file.parent.mkdir(parents=True, exist_ok=True)
     with open(first_file, "w") as f:
-        json.dump(expected_role_json.get("First.json"), f)
+        json.dump(expected_role_json.get("first.json"), f)
 
     _run_cmd(["--output", str(output_path)])
 
     # Verify that it worked
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
-        str(Path("99 - Ignored") / "outsider" / "Third.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.png"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.png"),
+        str(Path("99 - Ignored") / "outsider" / "third.json"),
     ]
     check_output_folder(output_path, expected_files=expected_files, check_func=check_expected_json)
 
@@ -98,7 +158,7 @@ def test_update_bad_json(tmp_path, capsys):
     """Test when a file in the output folder exists, but isn't in the format we expect."""
     output_path = tmp_path / "roles"
     output_path.mkdir()
-    first_file = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json"
+    first_file = output_path / "54 - Unreal Experimental" / "townsfolk" / "first.json"
     first_file.parent.mkdir(parents=True, exist_ok=True)
     with open(first_file, "w") as f:
         f.write("This is not json")
@@ -106,11 +166,11 @@ def test_update_bad_json(tmp_path, capsys):
 
     # Verify that we got the files we expected
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
-        str(Path("99 - Ignored") / "outsider" / "Third.json"),
-        str(Path("99 - Ignored") / "outsider" / "Third.png"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.png"),
+        str(Path("99 - Ignored") / "outsider" / "third.json"),
+        str(Path("99 - Ignored") / "outsider" / "third.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -130,8 +190,8 @@ def test_update_script_filter(tmp_path):
 
     # Verify that it worked
     expected_files = [
-        str(Path("99 - Ignored") / "outsider" / "Third.json"),
-        str(Path("99 - Ignored") / "outsider" / "Third.png"),
+        str(Path("99 - Ignored") / "outsider" / "third.json"),
+        str(Path("99 - Ignored") / "outsider" / "third.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -152,18 +212,18 @@ def test_update_icon_already_exists(tmp_path):
     """Test when the icon already exists."""
     output_path = tmp_path / "roles"
     output_path.mkdir()
-    icon_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.png"
+    icon_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "first.png"
     icon_path.parent.mkdir(parents=True, exist_ok=True)
     icon_path.touch()
     _run_cmd(["--output", str(output_path)])
 
     # Verify that it worked
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
-        str(Path("99 - Ignored") / "outsider" / "Third.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.png"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.png"),
+        str(Path("99 - Ignored") / "outsider" / "third.json"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -178,17 +238,17 @@ def test_update_custom_reminders_file(tmp_path):
 
     # Verify that it worked
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
-        str(Path("99 - Ignored") / "outsider" / "Third.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.png"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.png"),
+        str(Path("99 - Ignored") / "outsider" / "third.json"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
-    with open(output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json", "r") as f:
+    with open(output_path / "54 - Unreal Experimental" / "townsfolk" / "first.json", "r") as f:
         j = json.load(f)
     assert j["reminders"] == ["Custom reminder"]
-    with open(output_path / "54 - Unreal Experimental" / "demon" / "Second.json", "r") as f:
+    with open(output_path / "54 - Unreal Experimental" / "demon" / "second.json", "r") as f:
         j = json.load(f)
     assert j["reminders"] == ["SECOND REMINDER"]
 
@@ -197,23 +257,23 @@ def test_update_existing_icon_and_json(tmp_path):
     """Test when the icon and json file already exist."""
     output_path = tmp_path / "roles"
     output_path.mkdir()
-    icon_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.png"
+    icon_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "first.png"
     icon_path.parent.mkdir(parents=True, exist_ok=True)
     icon_path.touch()
-    json_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "First.json"
+    json_path = output_path / "54 - Unreal Experimental" / "townsfolk" / "first.json"
     json_path.parent.mkdir(parents=True, exist_ok=True)
     with open(json_path, "w") as f:
-        json.dump(expected_role_json.get("First.json"), f)
+        json.dump(expected_role_json.get("first.json"), f)
     _run_cmd(["--output", str(output_path)])
 
     # Verify that it worked
     expected_files = [
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.json"),
-        str(Path("54 - Unreal Experimental") / "townsfolk" / "First.png"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.json"),
-        str(Path("54 - Unreal Experimental") / "demon" / "Second.png"),
-        str(Path("99 - Ignored") / "outsider" / "Third.json"),
-        str(Path("99 - Ignored") / "outsider" / "Third.png"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.json"),
+        str(Path("54 - Unreal Experimental") / "townsfolk" / "first.png"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.json"),
+        str(Path("54 - Unreal Experimental") / "demon" / "second.png"),
+        str(Path("99 - Ignored") / "outsider" / "third.json"),
+        str(Path("99 - Ignored") / "outsider" / "third.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -223,7 +283,7 @@ def test_web_error_getting_icon(tmp_path, capsys):
     output_path = tmp_path / "roles"
     wiki = MagicMock()
     wiki.get_big_icon_url.return_value = "First.png"
-    found_role = Role(name="First")
+    found_role = Role(id="first", name="First")
     with patch("botc_tokens.commands.update.urlopen") as urlopen_mock:
         image_read_mock = MagicMock()
         fp = StringIO()  # This is necessary to avoid an issue when deconstructing urllib.error.HTTPError

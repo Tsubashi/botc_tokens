@@ -173,3 +173,12 @@ def format_filename(in_string):
     in_string = in_string.replace(' ', '_').replace('/', '-').replace('\\', '-').replace(':', '-').replace('?', 'Q')
     file_name = ''.join(char for char in in_string if char in valid_chars)
     return file_name
+
+def replace_font_in_text(in_string):
+    """Take a string and return a font family conform text, so that text can be rendered.
+
+    Args:
+        in_string: The string to convert to a font family conform text.
+
+    """
+    return in_string.replace('ő', 'ô').replace('ű', 'û').replace('Ő', 'Ô').replace('Ű', 'Û')

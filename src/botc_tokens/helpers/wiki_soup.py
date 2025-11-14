@@ -5,6 +5,7 @@ from urllib.request import urlopen
 
 from bs4 import BeautifulSoup
 
+from .text_tools import replace_font_in_text
 from .. import data_dir
 
 
@@ -30,6 +31,25 @@ class WikiSoup:
         self.role_data = [role for role in self.role_data if self._script_filter in role['version']]
         night_from_web = urlopen("https://script.bloodontheclocktower.com/data/nightsheet.json").read().decode('utf-8')
         self.night_data = json.loads(night_from_web)
+
+    def load_from_bloodstar(self, bloodstar_url):
+        """Load the role data from the bloodstar site."""
+        roles_from_bloodstar = json.loads(urlopen(bloodstar_url).read().decode('utf-8'))
+        meta_data = next((item for item in roles_from_bloodstar if item.get('id') == '_meta'), None)
+        version_name = None
+        if meta_data:
+            version_name = meta_data.get('name')
+        else:
+            print(f"[yellow]Warning:[/] Could not find metadata for the script")
+        # Filter and convert the roles
+        roles_with_version = []
+        for role in roles_from_bloodstar:
+            if role.get('id') != '_meta':
+                role['version'] = version_name
+                role['name'] = replace_font_in_text(role['name'])
+                role['ability'] = replace_font_in_text(role['ability'])
+                roles_with_version.append(role)
+        self.role_data = roles_with_version
 
     def _get_wiki_soup(self, role_name):
         """Take a role name and return a BeautifulSoup object for the role's wiki page."""
@@ -63,7 +83,7 @@ class WikiSoup:
         ability = ability.replace("\"", "'")
         return ability
 
-    def get_reminders(self, role_name):
+    def get_reminders(self, role_name, skip_reminders=False):
         """Take a role name and grab the reminders."""
         # First check if we have the role in the override reminders file
         if role_name in self.reminder_overrides:
@@ -74,6 +94,8 @@ class WikiSoup:
             return self.reminders[role_name]
 
         # If we don't have the role, go get it from the wiki
+        if skip_reminders:
+            return []
         reminders = set()
         soup = self._get_wiki_soup(role_name)
         reminder_title = soup.find(id="How_to_Run")

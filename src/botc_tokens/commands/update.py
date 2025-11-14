@@ -3,13 +3,13 @@
 """Download story from the requested url."""
 # Standard library
 import argparse
-from dataclasses import asdict
 import json
-from pathlib import Path
 import sys
+import urllib.parse
+from dataclasses import asdict
+from pathlib import Path
 from time import sleep
 from urllib.error import HTTPError
-import urllib.parse
 from urllib.request import Request, urlopen
 
 # Third-party libraries
@@ -33,12 +33,16 @@ def _parse_args():
                         help="Directory in which to write the json and icon files (Default: 'inputs')")
     parser.add_argument('--script-filter', type=str, default='',
                         help="Filter for scripts to pull (Example: 'Experimental')")
+    parser.add_argument('-b', '--bloodstar-url', type=str, default='',
+                        help="Link to bloodstar hosted script json")
     parser.add_argument('--reminders', type=str,
                         help="JSON file to override reminder guesses from the wiki.")
     parser.add_argument('-c', '--custom-list', type=str, default=None,
                         help="JSON file with a custom list of roles to update.")
     parser.add_argument('--use-playtest', action='store_true',
                         help="Use the playtest icon source instead of the wiki.")
+    parser.add_argument('--use-built-in', action='store_true',
+                        help="Use the built-in role list as of date 2025-11-13.")
     args = parser.parse_args(sys.argv[2:])
     return args
 
@@ -82,7 +86,7 @@ def run():
         role_task = overall_progress.add_task("Updating role data...", total=None)
 
         step_task = step_progress.add_task("Grabbing role data")
-        wiki = prep_wiki(args.script_filter, args.custom_list)
+        wiki = prep_wiki(args.script_filter, args.bloodstar_url, args.custom_list, args.use_built_in)
         if wiki is None:
             return 1
 
@@ -123,11 +127,12 @@ def run():
             role_file = role_output_path / f"{format_filename(role['id'])}.json"
 
             found_role = \
-                process_role(role, role_file, wiki, step_progress, step_task, role_output_path, args.use_playtest)
+                process_role(role, role_file, wiki, step_progress, step_task, role_output_path,
+                             len(args.bloodstar_url) > 0 or args.use_built_in, args.use_playtest or args.use_built_in)
 
             if found_role is not None:
                 # Check if the role is in our forced_setup list
-                if found_role.name.lower() in forced_setup:
+                if found_role.id.lower() in forced_setup:
                     found_role.affects_setup = True
 
                 # Write it out
@@ -140,16 +145,22 @@ def run():
         step_progress.stop_task(step_task)
 
 
-def prep_wiki(script_filter, custom_list=None):
+def prep_wiki(script_filter, bloodstar_url, custom_list=None, use_built_in=False):
     """Prepare the wiki object, loading the data from the web or a custom list.
 
     Args:
         script_filter (str): The filter to use when downloading the data.
+        bloodstar_url (str): The URL of the bloodstar site.
         custom_list (str): The path to a custom list of roles to use.
+        use_built_in (bool): Whether to load roles from built in file.
     """
     # Gather the requested role data
     wiki = WikiSoup(script_filter)
-    if custom_list:
+    if use_built_in:
+        wiki.role_data = json.load(open(data_dir / "known_roles.json", encoding="utf-8"))
+    elif bloodstar_url.startswith("https://www.bloodstar.xyz"):
+        wiki.load_from_bloodstar(bloodstar_url)
+    elif custom_list:
         custom_list_path = Path(custom_list)
         if not custom_list_path.exists():
             print(f"[red]Error:[/] Could not find '{custom_list}'")
@@ -169,7 +180,7 @@ def prep_wiki(script_filter, custom_list=None):
     return wiki
 
 
-def process_role(role, file, wiki, step_progress, step_task, role_output_path, use_playtest=False):
+def process_role(role, file, wiki, step_progress, step_task, role_output_path, skip_reminders=False, use_playtest=False):
     """Process a role, grabbing the relevant data and returning a Role object.
 
     Args:
@@ -182,7 +193,8 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path, u
         use_playtest (bool): Whether to use the playtest icon source instead of the wiki.
     """
     name = role['name']
-    found_role = Role(name=name)
+    role_id = role['id']
+    found_role = Role(id= role_id, name=name)
 
     # Check if we have a json file for the role
     if file.exists():
@@ -205,15 +217,15 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path, u
         if role.get("remindersGlobal"):
             found_role.reminders.extend(role.get("remindersGlobal"))
         if not found_role.reminders:
-            found_role.reminders = get_role_reminders(name, wiki)
+            found_role.reminders = get_role_reminders(name, wiki, skip_reminders)
 
         # Determine night actions
-        if role.get("firstNight"):
+        if role.get("firstNight") or has_value(role.get("firstNightReminder")):
             found_role.first_night = True
         else:
             found_role.first_night = True if role['id'] in wiki.night_data['firstNight'] else False
 
-        if role.get("otherNight"):
+        if role.get("otherNight") or has_value(role.get("otherNightReminder")):
             found_role.other_nights = True
         else:
             found_role.other_nights = True if role['id'] in wiki.night_data['otherNight'] else False
@@ -239,6 +251,10 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path, u
 
     return found_role
 
+def has_value(value):
+    if isinstance(value, str):
+        return len(value) > 0
+    return False
 
 def get_role_icon(found_role, role, role_output_path, wiki, use_playtest=False):
     """Get the icon for a role, using the wiki if needed.
@@ -274,7 +290,7 @@ def get_role_icon(found_role, role, role_output_path, wiki, use_playtest=False):
                 print(f"[red]Error:[/] No icon found for {found_role.name}: {str(e)}")
                 return
             icon_url = urllib.parse.urljoin("https://wiki.bloodontheclocktower.com", icon_url)
-    icon_path = role_output_path / f"{format_filename(found_role.name)}{Path(icon_url).suffix}"
+    icon_path = role_output_path / f"{format_filename(found_role.id)}{Path(icon_url).suffix}"
     icon_path.parent.mkdir(parents=True, exist_ok=True)
     if not save_icon(found_role, icon_path, icon_url):
         return
@@ -320,15 +336,16 @@ def get_role_ability(name, wiki):
         return ""
 
 
-def get_role_reminders(name, wiki):
+def get_role_reminders(name, wiki, skip_reminders=False):
     """Get the reminders for a role, using the wiki if needed.
 
     Args:
         name (str): The name of the role to search.
         wiki (WikiSoup): The wiki soup object.
+        skip_reminders (bool): Whether to skip the reminder search in case of built-in and bloodstar homebrew characters.
     """
     try:
-        return wiki.get_reminders(name)
+        return wiki.get_reminders(name, skip_reminders)
     except RuntimeError:
         print(f"[red]Error:[/] No reminder info found for {name}")
         return []
