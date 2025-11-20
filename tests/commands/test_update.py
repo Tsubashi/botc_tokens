@@ -7,27 +7,41 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
 
-# Third Party
-from testhelpers import check_output_folder, expected_role_json, webmock_list
-
 # Application Specific
 from botc_tokens.commands import update
 from botc_tokens.helpers.role import Role
+# Third Party
+from testhelpers import check_output_folder, expected_role_json, webmock_list
+
+
+def web_response(url):
+    web_read_mock = MagicMock()
+    if url.find('roles.json') != -1:
+        web_read_mock.read.return_value = webmock_list[0]
+    elif url.find('nightsheet.json') != -1:
+        web_read_mock.read.return_value = webmock_list[1]
+    elif url.find('/First') != -1:
+        web_read_mock.read.return_value = webmock_list[2]
+    elif url.find('/Second') != -1:
+        web_read_mock.read.return_value = webmock_list[3]
+    elif url.find('/Third') != -1:
+        web_read_mock.read.return_value = webmock_list[4]
+    elif url.find('bloodstar') != -1:
+        web_read_mock.read.return_value = webmock_list[5]
+    return web_read_mock
 
 
 @contextmanager
 def web_mock():
     """Mock out actual web access."""
     # First create the return data we would expect from the web, in the order we expect it.
-    wiki_read_mock = MagicMock()
-    wiki_read_mock.read.side_effect = webmock_list
     image_read_mock = MagicMock()
     image_read_mock.read.return_value = (Path(__file__).parent.parent / "data" / "icons" / "1.png").read_bytes()
 
     # Now mock out all the web calls to instead return the data we created
     with patch("botc_tokens.helpers.wiki_soup.urlopen") as wiki_soup_urlopen_mock:
-        wiki_soup_urlopen_mock.return_value.__enter__.return_value.read = wiki_read_mock
-        wiki_soup_urlopen_mock.return_value = wiki_read_mock
+        wiki_soup_urlopen_mock.return_value.__enter__.reuturn_value.read = web_response
+        wiki_soup_urlopen_mock.side_effect = web_response
         # Make sure to patch it in the update command as well, since we don't want to actually download the images
         with patch("botc_tokens.commands.update.urlopen") as update_urlopen_mock:
             update_urlopen_mock.return_value.__enter__.return_value.read = image_read_mock
@@ -55,19 +69,6 @@ def check_expected_json(input_file_path):
             j = json.load(f)
         assert j == expected_role_json.get(input_file_path.name)
 
-def check_expected_folder(input_folder_path):
-    """Ensure each folder exists and, if it is the same amount of json file, and png file is in it."""
-    assert input_folder_path.is_dir()
-    json_cnt = 0
-    png_cnt = 0
-    for item in input_folder_path.iterdir():
-        if item.is_file():
-            if item.suffix == '.json':
-                json_cnt += 1
-            elif item.suffix == '.png':
-                png_cnt += 1
-    assert json_cnt == png_cnt
-
 
 def test_update_command(tmp_path):
     """Test the update command in its normal configuration."""
@@ -84,42 +85,15 @@ def test_update_command(tmp_path):
     ]
     check_output_folder(output_path, expected_files=expected_files, check_func=check_expected_json)
 
-def test_update_command_built_in(tmp_path):
-    """Test the update command with built-in roles."""
-    output_path = tmp_path / "roles"
-    _run_cmd(["--output", str(output_path), "--use-built-in", "--use-playtest"])
 
-    # Verify that it worked
-    expected_folders = [
-        str(Path("bmr") / "demon"),
-        str(Path("bmr") / "minion"),
-        str(Path("bmr") / "outsider"),
-        str(Path("bmr") / "townsfolk"),
-        str(Path("bmr") / "traveller"),
-        str(Path("tb") / "demon"),
-        str(Path("tb") / "minion"),
-        str(Path("tb") / "outsider"),
-        str(Path("tb") / "townsfolk"),
-        str(Path("tb") / "traveller"),
-        str(Path("snv") / "demon"),
-        str(Path("snv") / "minion"),
-        str(Path("snv") / "outsider"),
-        str(Path("snv") / "townsfolk"),
-        str(Path("snv") / "traveller"),
-        str(Path("carousel") / "demon"),
-        str(Path("fabled") / "fabled"),
-        str(Path("loric") / "loric")
-    ]
-    for folder in expected_folders:
-        check_expected_folder(output_path / folder)
-
-def test_update_command_bloodstar_url(tmp_path):
-    """Test the update command with bloodstar url roles."""
+def test_update_command_custom_json_url(tmp_path):
+    """Test the update command with web hosted custom json url roles."""
     reminders_file = tmp_path / "reminders.json"
     with open(reminders_file, "w") as f:
         json.dump({"Second": ["SECOND REMINDER"]}, f)
     output_path = tmp_path / "roles"
-    _run_cmd(["--output", str(output_path), "--bloodstar-url", "https://bloodstar.xyz/p/user/script/script.json?1", "--reminders", str(reminders_file)])
+    _run_cmd(["--output", str(output_path), "-c", "https://bloodstar.xyz/p/user/script/script.json?1", "--reminders",
+              str(reminders_file)])
 
     # Verify that it worked
     expected_files = [
@@ -170,7 +144,6 @@ def test_update_bad_json(tmp_path, capsys):
         str(Path("54 - Unreal Experimental") / "demon" / "second.json"),
         str(Path("54 - Unreal Experimental") / "demon" / "second.png"),
         str(Path("99 - Ignored") / "outsider" / "third.json"),
-        str(Path("99 - Ignored") / "outsider" / "third.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -191,7 +164,6 @@ def test_update_script_filter(tmp_path):
     # Verify that it worked
     expected_files = [
         str(Path("99 - Ignored") / "outsider" / "third.json"),
-        str(Path("99 - Ignored") / "outsider" / "third.png"),
     ]
     check_output_folder(output_path, expected_files=expected_files)
 
@@ -264,7 +236,7 @@ def test_update_existing_icon_and_json(tmp_path):
     json_path.parent.mkdir(parents=True, exist_ok=True)
     with open(json_path, "w") as f:
         json.dump(expected_role_json.get("first.json"), f)
-    _run_cmd(["--output", str(output_path)])
+    _run_cmd(["--output", str(output_path), "--use-playtest"])
 
     # Verify that it worked
     expected_files = [

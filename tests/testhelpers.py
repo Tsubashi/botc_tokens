@@ -12,6 +12,7 @@ def check_output_folder(output_path, expected_files, check_func=None):
     :param check_func: Function for checking each file in expected_files. Defaults to checking that the file exists.
 
     """
+
     # Default check function, in case one isn't passed in.
     def default_check(input_file_path):
         """Ensure each file exists and is a file."""
@@ -49,34 +50,6 @@ def expect_exit_with_output(capsys, expected_text, expected_code=1):
     output = capsys.readouterr()
     assert (expected_text in output.out) or (expected_text in output.err)
 
-
-webmock_bloodstar = [
-    # Bloodstar url sample response
-    b"""[
-  {
-    "id": "_meta",
-    "name": "Test"
-  },
-  {
-    "id": "first",
-    "image": "https://www.bloodstar.xyz/first.png",
-    "reminders": [
-      "No ability"
-    ],
-    "name": "First",
-    "team": "townsfolk",
-    "ability": "First ability"
-  },
-  {
-    "id": "second",
-    "image": "https://www.bloodstar.xyz/second.png",
-    "name": "Second",
-    "team": "demon",
-    "ability": "Second ability",
-    "otherNightReminder": "reminder text"
-  }
-]"""
-]
 
 webmock_list = [
     # The first call is for the role data
@@ -147,8 +120,37 @@ webmock_list = [
           <body>
           </body>
         </html>""",
+    b"""[
+        {
+            "id": "_meta",
+            "name": "54 - Unreal Experimental"
+        },
+        {
+            "id": "first",
+            "image": "https://www.bloodstar.xyz/first.png",
+            "name": "First",
+            "team": "townsfolk",
+            "firstNightReminder": "first night wakes",
+            "otherNightReminder": "other nights wakes"
+        },
+        {
+            "id": "second",
+            "image": "https://www.bloodstar.xyz/second.png",
+            "name": "Second",
+            "team": "demon",
+            "otherNightReminder": "reminder text"
+        },
+        {
+            "id": "third",
+            "name": "Third",
+            "roleType": "outsider",
+            "print": "unused",
+            "icon": "unused",
+            "version": "99 - Ignored",
+            "isDisabled": false
+        }
+    ]""",
 ]
-
 
 expected_role_json = {
     "first.json": {
