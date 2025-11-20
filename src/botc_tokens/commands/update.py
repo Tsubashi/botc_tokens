@@ -33,16 +33,12 @@ def _parse_args():
                         help="Directory in which to write the json and icon files (Default: 'inputs')")
     parser.add_argument('--script-filter', type=str, default='',
                         help="Filter for scripts to pull (Example: 'Experimental')")
-    parser.add_argument('-b', '--bloodstar-url', type=str, default='',
-                        help="Link to bloodstar hosted script json")
     parser.add_argument('--reminders', type=str,
                         help="JSON file to override reminder guesses from the wiki.")
     parser.add_argument('-c', '--custom-list', type=str, default=None,
-                        help="JSON file with a custom list of roles to update.")
+                        help="Local or web hosted JSON file with a custom list of roles to update.")
     parser.add_argument('--use-playtest', action='store_true',
                         help="Use the playtest icon source instead of the wiki.")
-    parser.add_argument('--use-built-in', action='store_true',
-                        help="Use the built-in role list as of date 2025-11-13.")
     args = parser.parse_args(sys.argv[2:])
     return args
 
@@ -86,7 +82,7 @@ def run():
         role_task = overall_progress.add_task("Updating role data...", total=None)
 
         step_task = step_progress.add_task("Grabbing role data")
-        wiki = prep_wiki(args.script_filter, args.bloodstar_url, args.custom_list, args.use_built_in)
+        wiki = prep_wiki(args.script_filter, args.custom_list)
         if wiki is None:
             return 1
 
@@ -127,8 +123,7 @@ def run():
             role_file = role_output_path / f"{format_filename(role['id'])}.json"
 
             found_role = \
-                process_role(role, role_file, wiki, step_progress, step_task, role_output_path,
-                             len(args.bloodstar_url) > 0 or args.use_built_in, args.use_playtest)
+                process_role(role, role_file, wiki, step_progress, step_task, role_output_path, args.use_playtest)
 
             if found_role is not None:
                 # Check if the role is in our forced_setup list
@@ -145,42 +140,39 @@ def run():
         step_progress.stop_task(step_task)
 
 
-def prep_wiki(script_filter, bloodstar_url, custom_list=None, use_built_in=False):
+def prep_wiki(script_filter, custom_list=None):
     """Prepare the wiki object, loading the data from the web or a custom list.
 
     Args:
         script_filter (str): The filter to use when downloading the data.
-        bloodstar_url (str): The URL of the bloodstar site.
         custom_list (str): The path to a custom list of roles to use.
-        use_built_in (bool): Whether to load roles from built in file.
     """
     # Gather the requested role data
     wiki = WikiSoup(script_filter)
-    if use_built_in:
-        wiki.role_data = json.load(open(data_dir / "known_roles.json", encoding="utf-8"))
-    elif bloodstar_url.startswith("https://www.bloodstar.xyz"):
-        wiki.load_from_bloodstar(bloodstar_url)
-    elif custom_list:
-        custom_list_path = Path(custom_list)
-        if not custom_list_path.exists():
-            print(f"[red]Error:[/] Could not find '{custom_list}'")
-            return None
-        with open(custom_list_path, "r") as f:
-            custom_list = json.load(f)
-            try:
-                validate(custom_list, json.load(open(data_dir / "role_schema.json")))
-            except ValidationError as e:
-                print(f"[yellow]Warning:[/] The custom json specified does not fit the copy of the TPI schema that I "
-                      f"have. Specifically: {e}"
-                      f"\n\nI will continue, but [yellow]be warned that it might not work[/].")
-            wiki.role_data = custom_list
+    if custom_list:
+        if custom_list.startswith("https://"):
+            wiki.load_from_web_json(custom_list)
+        else:
+            custom_list_path = Path(custom_list)
+            if not custom_list_path.exists():
+                print(f"[red]Error:[/] Could not find '{custom_list}'")
+                return None
+            with open(custom_list_path, "r") as f:
+                custom_list = json.load(f)
+                try:
+                    validate(custom_list, json.load(open(data_dir / "role_schema.json")))
+                except ValidationError as e:
+                    print(f"[yellow]Warning:[/] The custom json specified does not fit the copy of the TPI schema that I "
+                          f"have. Specifically: {e}"
+                          f"\n\nI will continue, but [yellow]be warned that it might not work[/].")
+                wiki.role_data = custom_list
     else:
         # Download the official lists from the script tool
         wiki.load_from_web()
     return wiki
 
 
-def process_role(role, file, wiki, step_progress, step_task, role_output_path, skip_reminders=False, use_playtest=False):
+def process_role(role, file, wiki, step_progress, step_task, role_output_path, use_playtest=False):
     """Process a role, grabbing the relevant data and returning a Role object.
 
     Args:
@@ -217,7 +209,7 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path, s
         if role.get("remindersGlobal"):
             found_role.reminders.extend(role.get("remindersGlobal"))
         if not found_role.reminders:
-            found_role.reminders = get_role_reminders(name, wiki, skip_reminders)
+            found_role.reminders = get_role_reminders(name, wiki)
 
         # Determine night actions
         if role.get("firstNight") or has_value(role.get("firstNightReminder")):
@@ -336,16 +328,15 @@ def get_role_ability(name, wiki):
         return ""
 
 
-def get_role_reminders(name, wiki, skip_reminders=False):
+def get_role_reminders(name, wiki):
     """Get the reminders for a role, using the wiki if needed.
 
     Args:
         name (str): The name of the role to search.
         wiki (WikiSoup): The wiki soup object.
-        skip_reminders (bool): Whether to skip the reminder search in case of built-in and bloodstar homebrew characters.
     """
     try:
-        return wiki.get_reminders(name, skip_reminders)
+        return wiki.get_reminders(name)
     except RuntimeError:
         print(f"[red]Error:[/] No reminder info found for {name}")
         return []
