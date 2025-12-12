@@ -7,11 +7,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
 
+# Third Party
+from testhelpers import check_output_folder, expected_role_json, webmock_list
+
 # Application Specific
 from botc_tokens.commands import update
 from botc_tokens.helpers.role import Role
-# Third Party
-from testhelpers import check_output_folder, expected_role_json, webmock_list
 
 
 def web_response(url):

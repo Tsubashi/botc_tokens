@@ -159,13 +159,13 @@ def prep_wiki(script_filter, custom_list=None):
                 return None
             with open(custom_list_path, "r") as f:
                 custom_list = json.load(f)
-                try:
-                    validate(custom_list, json.load(open(data_dir / "role_schema.json")))
-                except ValidationError as e:
-                    print(f"[yellow]Warning:[/] The custom json specified does not fit the copy of the TPI schema that I "
-                          f"have. Specifically: {e}"
-                          f"\n\nI will continue, but [yellow]be warned that it might not work[/].")
                 wiki.role_data = custom_list
+        try:
+            validate(wiki.role_data, json.load(open(data_dir / "role_schema.json")))
+        except ValidationError as e:
+            print(f"[yellow]Warning:[/] The custom json specified does not fit the copy of the TPI schema that I "
+                  f"have. Specifically: {e}"
+                  f"\n\nI will continue, but [yellow]be warned that it might not work[/].")
     else:
         # Download the official lists from the script tool
         wiki.load_from_web()
@@ -186,7 +186,7 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path, u
     """
     name = role['name']
     role_id = role['id']
-    found_role = Role(id= role_id, name=name)
+    found_role = Role(id=role_id, name=name)
 
     # Check if we have a json file for the role
     if file.exists():
@@ -243,10 +243,12 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path, u
 
     return found_role
 
+
 def has_value(value):
     if isinstance(value, str):
         return len(value) > 0
     return False
+
 
 def get_role_icon(found_role, role, role_output_path, wiki, use_playtest=False):
     """Get the icon for a role, using the wiki if needed.
