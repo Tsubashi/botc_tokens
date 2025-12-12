@@ -38,8 +38,6 @@ class WikiSoup:
         version_name = None
         if meta_data:
             version_name = meta_data.get('name')
-        else:
-            print(f"[yellow]Warning:[/] Could not find metadata for the script")
         # Filter and convert the roles
         roles_with_version = []
         for role in roles_from_web_json:

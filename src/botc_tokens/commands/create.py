@@ -136,8 +136,8 @@ def load_components(component_package):
         print(f"\n[red]Error:[/][bold] Could not load component: {str(e)}[/]")
         return None
     except BadZipFile:
-        print(f"\n[red]Error:[/][bold] Could not load components from '{component_package}' it does not appear to be a \n"
-              "valid components package.[/]")
+        print(f"\n[red]Error:[/][bold] Could not load components from '{component_package}' it does not appear"
+              " to be a \nvalid components package.[/]")
         return None
     except FileNotFoundError as e:
         print(f"\n[red]Error:[/][bold] Unable to load components from '{component_package}': {str(e)}")
