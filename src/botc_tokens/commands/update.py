@@ -3,13 +3,13 @@
 """Download story from the requested url."""
 # Standard library
 import argparse
-import json
-import sys
-import urllib.parse
 from dataclasses import asdict
+import json
 from pathlib import Path
+import sys
 from time import sleep
 from urllib.error import HTTPError
+import urllib.parse
 from urllib.request import Request, urlopen
 
 # Third-party libraries
