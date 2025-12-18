@@ -12,7 +12,6 @@ def check_output_folder(output_path, expected_files, check_func=None):
     :param check_func: Function for checking each file in expected_files. Defaults to checking that the file exists.
 
     """
-
     # Default check function, in case one isn't passed in.
     def default_check(input_file_path):
         """Ensure each file exists and is a file."""

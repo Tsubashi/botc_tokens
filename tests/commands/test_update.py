@@ -16,6 +16,11 @@ from botc_tokens.helpers.role import Role
 
 
 def web_response(url):
+    """Routes mock response based on URL.
+
+    Args:
+        url (str): The URL on which the call has been made.
+    """
     web_read_mock = MagicMock()
     if url.find('roles.json') != -1:
         web_read_mock.read.return_value = webmock_list[0]
