@@ -245,6 +245,11 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path, u
 
 
 def has_value(value):
+    """Checks if the provided value is a non-empty string.
+
+    Args:
+        value (str): The value to be checked.
+    """
     if isinstance(value, str):
         return len(value) > 0
     return False
