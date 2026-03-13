@@ -174,3 +174,30 @@ def test_disallowed_reminders():
         wiki_soup.reminders["First"] = ["YOU ARE"]
         reminders = wiki_soup.get_reminders("First")
         assert reminders == ["YOU ARE"]
+
+
+def test_load_from_web_json_without_meta():
+    """Allow JSON role feeds that do not include a _meta record."""
+    roles_json = (
+        b'[{"id":"first","name":"First","ability":"First ability","version":"Experimental"},'
+        b'{"id":"second","name":"Second","ability":"Second ability"}]'
+    )
+
+    with web_mock([roles_json]):
+        wiki_soup = WikiSoup()
+        wiki_soup.load_from_web_json("https://example.com/custom_roles.json")
+
+    assert wiki_soup.role_data == [
+        {
+            "id": "first",
+            "name": "First",
+            "ability": "First ability",
+            "version": "Experimental",
+        },
+        {
+            "id": "second",
+            "name": "Second",
+            "ability": "Second ability",
+            "version": None,
+        },
+    ]
