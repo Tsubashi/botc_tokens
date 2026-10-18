@@ -56,28 +56,28 @@ webmock_list = [
          {
             "id": "first",
             "name": "First",
-            "roleType": "townsfolk",
+            "team": "townsfolk",
             "print": "unused",
             "icon": "unused",
-            "version": "54 - Unreal Experimental",
+            "edition": "54 - Unreal Experimental",
             "isDisabled": false
           },
           {
             "id": "second",
             "name": "Second",
-            "roleType": "demon",
+            "team": "demon",
             "print": "unused",
             "icon": "unused",
-            "version": "54 - Unreal Experimental",
+            "edition": "54 - Unreal Experimental",
             "isDisabled": false
           },
           {
             "id": "third",
             "name": "Third",
-            "roleType": "outsider",
+            "team": "outsider",
             "print": "unused",
             "icon": "unused",
-            "version": "99 - Ignored",
+            "edition": "99 - Ignored",
             "isDisabled": false
           }
         ]""",

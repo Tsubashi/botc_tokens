@@ -10,6 +10,7 @@ import pytest
 import testhelpers
 
 # Application Specific
+from botc_tokens.__version__ import version
 from botc_tokens.helpers.wiki_soup import WikiSoup
 
 
@@ -24,17 +25,61 @@ def web_mock(response_list=testhelpers.webmock_list):
     with mock.patch("botc_tokens.helpers.wiki_soup.urlopen") as urlopen_mock:
         urlopen_mock.return_value.__enter__.return_value.read = urlopen_read_mock
         urlopen_mock.return_value = urlopen_read_mock
-        yield
+        with mock.patch("botc_tokens.helpers.wiki_soup.sleep") as sleep_mock:
+            urlopen_mock.sleep = sleep_mock
+            yield urlopen_mock
+
+
+def _requested_urls(urlopen_mock):
+    """Pull the full URL out of every request made through the mocked urlopen."""
+    return [call.args[0].full_url for call in urlopen_mock.call_args_list]
 
 
 def test_wiki_soup_creation():
     """Ensure we can create a WikiSoup object."""
-    with web_mock():
+    with web_mock() as urlopen_mock:
         wiki_soup = WikiSoup()
         wiki_soup.load_from_web()
         assert wiki_soup
         assert wiki_soup.role_data[0]["name"] == "First"
         assert wiki_soup.night_data["firstNight"] == ["DUSK", "first"]
+    assert _requested_urls(urlopen_mock) == [
+        "https://release.botc.app/resources/data/roles.json",
+        "https://release.botc.app/resources/data/nightsheet.json",
+    ]
+
+
+def test_wiki_soup_requests_identify_themselves():
+    """Every request should say it comes from botc_tokens, rather than pretending to be a browser."""
+    with web_mock() as urlopen_mock:
+        wiki_soup = WikiSoup()
+        wiki_soup.load_from_web()
+        wiki_soup._get_wiki_soup("First")
+    for call in urlopen_mock.call_args_list:
+        user_agent = call.args[0].get_header("User-agent", "")
+        assert user_agent.startswith(f"botc_tokens/{version} ")
+        assert "github.com/Tsubashi/botc_tokens" in user_agent
+        assert "Mozilla" not in user_agent
+
+
+def test_wiki_soup_filters_on_edition():
+    """The official data now records the home script in 'edition' rather than 'version'."""
+    with web_mock():
+        wiki_soup = WikiSoup("54 - Unreal Experimental")
+        wiki_soup.load_from_web()
+    assert [role["id"] for role in wiki_soup.role_data] == ["first", "second"]
+
+
+def test_wiki_soup_filter_falls_back_to_version():
+    """Still support feeds that use the older 'version' key for the home script."""
+    response_list = testhelpers.webmock_list.copy()
+    response_list[0] = (
+        b'[{"id": "old", "name": "Old", "version": "Legacy"}, {"id": "new", "name": "New", "edition": "tb"}]'
+    )
+    with web_mock(response_list):
+        wiki_soup = WikiSoup("Legacy")
+        wiki_soup.load_from_web()
+    assert [role["id"] for role in wiki_soup.role_data] == ["old"]
 
 
 def test_wiki_soup_get_ability_text():
@@ -137,17 +182,35 @@ def test_wiki_soup_404():
         assert "Could not find role First" in str(e.value)
 
 
-def test_wiki_soup_500():
-    """Pass on 500 errors."""
+def test_wiki_soup_retries_transient_errors():
+    """Retry wiki page fetches that fail with a non-404 error, pausing between attempts."""
     response_list = testhelpers.webmock_list.copy()
     fp = StringIO()  # This is necessary to avoid an issue when deconstructing urllib.error.HTTPError
-    response_list[2] = urllib.error.HTTPError("test_url", 500, "Problem!", "hdrs", fp)
-    with web_mock(response_list):
+    response_list[2:2] = [
+        urllib.error.HTTPError("test_url", 418, "I'm a teapot", "hdrs", fp),
+        urllib.error.HTTPError("test_url", 500, "Problem!", "hdrs", fp),
+    ]
+    with web_mock(response_list) as urlopen_mock:
+        wiki_soup = WikiSoup()
+        wiki_soup.load_from_web()
+        ability = wiki_soup.get_ability_text("First")
+    assert ability == "First ability description"
+    assert _requested_urls(urlopen_mock)[2:] == ["https://wiki.bloodontheclocktower.com/First"] * 3
+    assert urlopen_mock.sleep.call_count == 2
+
+
+def test_wiki_soup_500():
+    """Pass on 500 errors once the retries are exhausted."""
+    response_list = testhelpers.webmock_list.copy()
+    fp = StringIO()  # This is necessary to avoid an issue when deconstructing urllib.error.HTTPError
+    response_list[2:3] = [urllib.error.HTTPError("test_url", 500, "Problem!", "hdrs", fp)] * 3
+    with web_mock(response_list) as urlopen_mock:
         wiki_soup = WikiSoup()
         wiki_soup.load_from_web()
         with pytest.raises(urllib.error.HTTPError) as e:
             wiki_soup._get_wiki_soup("First")
         assert "Problem!" in str(e.value)
+    assert urlopen_mock.call_count == 5
 
 
 def test_wiki_soup_reminder_overrides():

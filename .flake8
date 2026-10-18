@@ -3,6 +3,8 @@ select = B,C,D,E,F,I,N,W,B902,B950
 exclude =
     .tox,
     .git,
+    .venv,
+    .claude,
     __pycache__,
     docs/source/conf.py,
     build,
