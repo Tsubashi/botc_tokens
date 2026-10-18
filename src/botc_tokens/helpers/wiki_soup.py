@@ -1,11 +1,46 @@
 """A class to act as a cache for wiki access. That way we don't have to keep hitting the wiki for the same page."""
 import json
+from time import sleep
 import urllib.error
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from bs4 import BeautifulSoup
 
 from .. import data_dir
+from ..__version__ import version
+
+# The official data files published alongside the script tool. The old script.bloodontheclocktower.com/data
+# location no longer exists.
+ROLES_URL = "https://release.botc.app/resources/data/roles.json"
+NIGHTSHEET_URL = "https://release.botc.app/resources/data/nightsheet.json"
+WIKI_URL = "https://wiki.bloodontheclocktower.com"
+
+# Some of the hosts reject requests with a bare default User-Agent (with a 418 or 403). Rather than pretending to be
+# a browser, identify ourselves honestly so the site owners know who is asking and where to find us.
+REQUEST_HEADERS = {
+    "User-Agent": f"botc_tokens/{version} (+https://github.com/Tsubashi/botc_tokens)",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+FETCH_ATTEMPTS = 3
+FETCH_RETRY_DELAY = 1.5
+
+
+def fetch(url):
+    """Read the contents of a URL, identifying ourselves as botc_tokens.
+
+    Anything other than a 404 is retried a few times, with a growing pause between attempts, in case we were
+    rate limited.
+    """
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            return urlopen(Request(url, headers=REQUEST_HEADERS)).read()
+        except urllib.error.HTTPError as e:
+            if e.code == 404 or attempt >= FETCH_ATTEMPTS:
+                raise
+            sleep(FETCH_RETRY_DELAY * attempt)
 
 
 class WikiSoup:
@@ -23,28 +58,44 @@ class WikiSoup:
         self._script_filter = script_filter
 
     def load_from_web(self):
-        """Load the role data from the wiki."""
-        roles_from_web = urlopen("https://script.bloodontheclocktower.com/data/roles.json").read().decode('utf-8')
-        self.role_data = json.loads(roles_from_web)
-        # Filter the roles
-        self.role_data = [role for role in self.role_data if self._script_filter in role['version']]
-        night_from_web = urlopen("https://script.bloodontheclocktower.com/data/nightsheet.json").read().decode('utf-8')
-        self.night_data = json.loads(night_from_web)
+        """Load the official role and night order data."""
+        self.role_data = json.loads(fetch(ROLES_URL).decode('utf-8'))
+        # Filter the roles. The official data calls the home script 'edition', older feeds used 'version'.
+        self.role_data = [
+            role for role in self.role_data
+            if self._script_filter in role.get('edition', role.get('version', ''))
+        ]
+        self.night_data = json.loads(fetch(NIGHTSHEET_URL).decode('utf-8'))
+
+    def load_from_web_json(self, custom_url):
+        """Load the role data from the provided web hosted JSON file."""
+        roles_from_web_json = json.loads(fetch(custom_url).decode('utf-8'))
+        meta_data = next((item for item in roles_from_web_json if item.get('id') == '_meta'), None)
+        version_name = None
+        if meta_data:
+            version_name = meta_data.get('name')
+        # Filter and convert the roles
+        roles_with_version = []
+        for role in roles_from_web_json:
+            if role.get('id') != '_meta':
+                role['version'] = version_name if role.get('version') is None else role['version']
+                role['name'] = role['name']
+                role['ability'] = role.get('ability')
+                roles_with_version.append(role)
+        self.role_data = roles_with_version
 
     def _get_wiki_soup(self, role_name):
         """Take a role name and return a BeautifulSoup object for the role's wiki page."""
         # Check if we have already seen this role
         role_name = role_name.replace(" ", "_")
         if role_name not in self.wiki_soups:
-            # Make a special check for Spirit of Ivory, since it has a different capitalization scheme.
-            url = f"https://wiki.bloodontheclocktower.com/{role_name}"
+            url = f"{WIKI_URL}/{role_name}"
             try:
-                html = urlopen(url).read()
+                html = fetch(url)
             except urllib.error.HTTPError as e:
                 if e.code == 404:
                     raise RuntimeError(f"Could not find role {role_name} at {url}")
-                else:
-                    raise
+                raise
             self.wiki_soups[role_name] = BeautifulSoup(html, 'html5lib')
         return self.wiki_soups[role_name]
 

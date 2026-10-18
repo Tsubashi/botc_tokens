@@ -54,30 +54,30 @@ webmock_list = [
     # The first call is for the role data
     b"""[
          {
-            "id": "First",
+            "id": "first",
             "name": "First",
-            "roleType": "townsfolk",
+            "team": "townsfolk",
             "print": "unused",
             "icon": "unused",
-            "version": "54 - Unreal Experimental",
+            "edition": "54 - Unreal Experimental",
             "isDisabled": false
           },
           {
-            "id": "Second",
+            "id": "second",
             "name": "Second",
-            "roleType": "demon",
+            "team": "demon",
             "print": "unused",
             "icon": "unused",
-            "version": "54 - Unreal Experimental",
+            "edition": "54 - Unreal Experimental",
             "isDisabled": false
           },
           {
-            "id": "Third",
+            "id": "third",
             "name": "Third",
-            "roleType": "outsider",
+            "team": "outsider",
             "print": "unused",
             "icon": "unused",
-            "version": "99 - Ignored",
+            "edition": "99 - Ignored",
             "isDisabled": false
           }
         ]""",
@@ -85,12 +85,12 @@ webmock_list = [
     b"""{
           "firstNight": [
             "DUSK",
-            "First"
+            "first"
           ],
           "otherNight": [
             "DUSK",
-            "First",
-            "Second"
+            "first",
+            "second"
           ]
         }""",
     # The third call is for the first role's wiki page
@@ -119,33 +119,65 @@ webmock_list = [
           <body>
           </body>
         </html>""",
+    b"""[
+        {
+            "id": "_meta",
+            "name": "54 - Unreal Experimental"
+        },
+        {
+            "id": "first",
+            "image": "https://www.bloodstar.xyz/first.png",
+            "name": "First",
+            "team": "townsfolk",
+            "firstNightReminder": "first night wakes",
+            "otherNightReminder": "other nights wakes"
+        },
+        {
+            "id": "second",
+            "image": "https://www.bloodstar.xyz/second.png",
+            "name": "Second",
+            "team": "demon",
+            "otherNightReminder": "reminder text"
+        },
+        {
+            "id": "third",
+            "name": "Third",
+            "roleType": "outsider",
+            "print": "unused",
+            "icon": "unused",
+            "version": "99 - Ignored",
+            "isDisabled": false
+        }
+    ]""",
 ]
 
-
 expected_role_json = {
-    "First.json": {
+    "first.json": {
+        'id': 'first',
         'ability': 'First ability description',
         'affects_setup': False,
         'first_night': True,
         'home_script': '54 - Unreal Experimental',
-        'icon': 'First.png',
+        'icon': 'first.png',
         'name': 'First',
         'other_nights': True,
         'reminders': [],
         'type': 'townsfolk'
     },
-    "Second.json": {
+    "second.json": {
+        'id': 'second',
         'ability': 'Second ability description [Affects Setup]',
         'affects_setup': True,
         'first_night': False,
         'home_script': '54 - Unreal Experimental',
-        'icon': 'Second.png',
+        'icon': 'second.png',
         'name': 'Second',
         'other_nights': True,
         'reminders': ["SECOND REMINDER"],
         'type': 'demon'
     },
-    "Third.json": {
+    "third.json": {
+        "id": "third",
         "name": "Third",
         "ability": "",
         "type": "outsider",

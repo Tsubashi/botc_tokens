@@ -86,5 +86,5 @@ def test_not_a_directory(tmp_path, capsys):
     check_output_folder(target_dir, [])
 
     captured = capsys.readouterr()
-    out_text = str(captured.out).replace("\n", "")  # Remove newlines to prevent wrapping when running in GHA
+    out_text = " ".join(str(captured.out).split())  # Collapse whitespace in case the long path caused wrapping
     assert "is not a directory." in out_text

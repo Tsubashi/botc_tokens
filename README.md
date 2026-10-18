@@ -36,13 +36,26 @@ You can use the `--help` flag to see the available commands and options.
 
 ### Updating from the web
 If you want to create experimental tokens for your in-person games, you can use the `update` command to download the
-current list from the [official wiki](https://wiki.bloodontheclocktower.com/). This is an incremental update, so it 
+current list from the [official role data](https://release.botc.app/resources/data/roles.json), filling in any gaps
+(such as icons) from the [official wiki](https://wiki.bloodontheclocktower.com/). This is an incremental update, so it 
 will only download assets that are not already present in the local folder. We highly recommend double-checking the
 resulting entries, especially the reminder token section. While the utility does its best to guess, it isn't perfect.
 If you already know the reminder tokens, you can create a JSON file for the utility to use. See the 
 [example repository](https://github.com/Tsubashi/botc_tokens-Examples) for an example of the format.
 ```bash
 botc_tokens update --output-dir /path/to/inputs --reminders /path/to/reminders.json
+```
+
+The official data labels each role with a short edition code (for example `tb`, `bmr`, `snv`, or `carousel`), and
+roles are sorted into folders by that code. Use `--script-filter` to only pull roles from a matching edition:
+```bash
+botc_tokens update --output-dir /path/to/inputs --script-filter carousel
+```
+
+If you would rather use your own list of roles (for example a homebrew script, or a copy of the official data), pass
+a local file or URL with `--custom-list`:
+```bash
+botc_tokens update --output-dir /path/to/inputs --custom-list /path/to/roles.json
 ```
 
 ### Creating tokens

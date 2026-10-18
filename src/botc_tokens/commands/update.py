@@ -36,7 +36,7 @@ def _parse_args():
     parser.add_argument('--reminders', type=str,
                         help="JSON file to override reminder guesses from the wiki.")
     parser.add_argument('-c', '--custom-list', type=str, default=None,
-                        help="JSON file with a custom list of roles to update.")
+                        help="Local or web hosted JSON file with a custom list of roles to update.")
     parser.add_argument('--use-playtest', action='store_true',
                         help="Use the playtest icon source instead of the wiki.")
     args = parser.parse_args(sys.argv[2:])
@@ -127,7 +127,7 @@ def run():
 
             if found_role is not None:
                 # Check if the role is in our forced_setup list
-                if found_role.name.lower() in forced_setup:
+                if found_role.id.lower() in forced_setup:
                     found_role.affects_setup = True
 
                 # Write it out
@@ -150,19 +150,22 @@ def prep_wiki(script_filter, custom_list=None):
     # Gather the requested role data
     wiki = WikiSoup(script_filter)
     if custom_list:
-        custom_list_path = Path(custom_list)
-        if not custom_list_path.exists():
-            print(f"[red]Error:[/] Could not find '{custom_list}'")
-            return None
-        with open(custom_list_path, "r") as f:
-            custom_list = json.load(f)
-            try:
-                validate(custom_list, json.load(open(data_dir / "role_schema.json")))
-            except ValidationError as e:
-                print(f"[yellow]Warning:[/] The custom json specified does not fit the copy of the TPI schema that I "
-                      f"have. Specifically: {e}"
-                      f"\n\nI will continue, but [yellow]be warned that it might not work[/].")
-            wiki.role_data = custom_list
+        if custom_list.startswith("https://"):
+            wiki.load_from_web_json(custom_list)
+        else:
+            custom_list_path = Path(custom_list)
+            if not custom_list_path.exists():
+                print(f"[red]Error:[/] Could not find '{custom_list}'")
+                return None
+            with open(custom_list_path, "r") as f:
+                custom_list = json.load(f)
+                wiki.role_data = custom_list
+        try:
+            validate(wiki.role_data, json.load(open(data_dir / "role_schema.json")))
+        except ValidationError as e:
+            print(f"[yellow]Warning:[/] The custom json specified does not fit the copy of the TPI schema that I "
+                  f"have. Specifically: {e}"
+                  f"\n\nI will continue, but [yellow]be warned that it might not work[/].")
     else:
         # Download the official lists from the script tool
         wiki.load_from_web()
@@ -182,7 +185,8 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path, u
         use_playtest (bool): Whether to use the playtest icon source instead of the wiki.
     """
     name = role['name']
-    found_role = Role(name=name)
+    role_id = role['id']
+    found_role = Role(id=role_id, name=name)
 
     # Check if we have a json file for the role
     if file.exists():
@@ -208,12 +212,12 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path, u
             found_role.reminders = get_role_reminders(name, wiki)
 
         # Determine night actions
-        if role.get("firstNight"):
+        if role.get("firstNight") or has_value(role.get("firstNightReminder")):
             found_role.first_night = True
         else:
             found_role.first_night = True if role['id'] in wiki.night_data['firstNight'] else False
 
-        if role.get("otherNight"):
+        if role.get("otherNight") or has_value(role.get("otherNightReminder")):
             found_role.other_nights = True
         else:
             found_role.other_nights = True if role['id'] in wiki.night_data['otherNight'] else False
@@ -238,6 +242,17 @@ def process_role(role, file, wiki, step_progress, step_task, role_output_path, u
     get_role_icon(found_role, role, role_output_path, wiki, use_playtest)
 
     return found_role
+
+
+def has_value(value):
+    """Checks if the provided value is a non-empty string.
+
+    Args:
+        value (str): The value to be checked.
+    """
+    if isinstance(value, str):
+        return len(value) > 0
+    return False
 
 
 def get_role_icon(found_role, role, role_output_path, wiki, use_playtest=False):
@@ -274,7 +289,7 @@ def get_role_icon(found_role, role, role_output_path, wiki, use_playtest=False):
                 print(f"[red]Error:[/] No icon found for {found_role.name}: {str(e)}")
                 return
             icon_url = urllib.parse.urljoin("https://wiki.bloodontheclocktower.com", icon_url)
-    icon_path = role_output_path / f"{format_filename(found_role.name)}{Path(icon_url).suffix}"
+    icon_path = role_output_path / f"{format_filename(found_role.id)}{Path(icon_url).suffix}"
     icon_path.parent.mkdir(parents=True, exist_ok=True)
     if not save_icon(found_role, icon_path, icon_url):
         return
