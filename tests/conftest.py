@@ -28,3 +28,14 @@ def component_package(tmp_path):
     dump_path = tmp_path / "dump"
     token_components.dump(dump_path)
     return dump_path
+
+
+@pytest.fixture()
+def fake_web(monkeypatch):
+    """Replace network access in the web helper with a FakeWeb."""
+    from testhelpers import FakeWeb  # Imported late so assert rewriting applies
+
+    web = FakeWeb()
+    monkeypatch.setattr("botc_tokens.helpers.web.urlopen", web.urlopen)
+    monkeypatch.setattr("botc_tokens.helpers.web.sleep", lambda seconds: None)
+    return web

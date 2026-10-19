@@ -1,5 +1,7 @@
 """Various helper utilities for testing."""
 from contextlib import contextmanager
+import io
+from urllib.error import HTTPError
 
 import pytest
 
@@ -48,3 +50,23 @@ def expect_exit_with_output(capsys, expected_text, expected_code=1):
         yield
     output = capsys.readouterr()
     assert (expected_text in output.out) or (expected_text in output.err)
+
+
+class FakeWeb:
+    """A fake network layer that serves canned responses for urlopen."""
+
+    def __init__(self):
+        """Create an empty set of routes."""
+        self.routes: dict[str, bytes | Exception] = {}
+        self.calls: list[str] = []
+
+    def urlopen(self, request, *args, **kwargs):
+        """Stand in for urllib.request.urlopen, serving from the configured routes."""
+        url = request.full_url
+        self.calls.append(url)
+        result = self.routes.get(url)
+        if isinstance(result, Exception):
+            raise result
+        if result is None:
+            raise HTTPError(url, 404, "Not Found", {}, None)
+        return io.BytesIO(result)
