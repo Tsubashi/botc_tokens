@@ -90,13 +90,6 @@ def run():
                 print(f"[red]Error:[/][bold] Icon not found for role: {role.name}[/]")
                 continue
             icon = Image(filename=role.icon)
-            reminder_icon = icon.clone()
-            # The "^" modifier means this transform specifies the minimum height and width.
-            # A transform without a modifier specifies the maximum height and width.
-            target_width = components.reminder_bg.width * 0.7
-            target_height = components.reminder_bg.height * 0.7
-            reminder_icon.transform(resize=f"{target_width}x{target_height}^")
-            reminder_icon.transform(resize=f"{target_width}x{target_height}")
             for reminder_text in role.reminders:
                 step_progress.update(step_task, description=f"Creating Token for: {role.name}")
                 reminder_name = role_slug + format_filename(f"-Reminder-{reminder_text}")
@@ -106,20 +99,18 @@ def run():
                     duplicate_counter += 1
                     reminder_output_path = role_output_path / f"{reminder_name}-{duplicate_counter}.png"
 
-                reminder_token = create_reminder_token(reminder_icon, reminder_text, components, args.reminder_diameter)
+                reminder_token = create_reminder_token(icon, reminder_text, components, args.reminder_diameter)
                 # Save the reminder token
                 reminder_token.save(filename=reminder_output_path)
                 reminder_token.close()
-            reminder_icon.close()
 
             # Composite the various pieces of the token.
             step_progress.update(step_task, description=f"Creating Token for: {role.name}")
-            token_icon = icon.clone()
-
-            token = create_role_token(token_icon, role, components, args.role_diameter, args.skip_ability_text)
+            token = create_role_token(icon, role, components, args.role_diameter, args.skip_ability_text)
             # Save the token
             token.save(filename=token_output_path)
             token.close()
+            icon.close()
 
             # Update the progress bar
             overall_progress.update(overall_task, advance=1)
