@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 # Third Party
 from pypdf import PdfReader
+import pytest
 from wand.color import Color
 from wand.image import Image
 
@@ -75,6 +76,46 @@ def test_migrate_writes_one_json_per_script(tmp_path, capsys):
     assert output.count("Warning:") == 2
     assert "bad.json" in output
     assert "three" in output
+
+
+def test_migrate_icon_problems_warn_and_continue(tmp_path, capsys):
+    """A null icon, a corrupt icon, and markup in an id are warned about; the roles are written without images."""
+    inputs = tmp_path / "Odd Script"
+    _write_role(inputs, "nullicon", icon=None)
+    _write_role(inputs, "corrupt")
+    (inputs / "corrupt.png").write_bytes(b"this is not a png")
+    _write_role(inputs, "markup", id="[/x]", icon="missing.png")
+    _write_role(inputs, "zgood")
+    _save_image(inputs / "zgood.png", "png")
+    out = tmp_path / "out"
+
+    assert _run_cmd(["-i", str(inputs), str(out)]) == 0
+
+    roles = {r["id"]: r for r in json.loads((out / "Odd_Script.json").read_text())[1:]}
+    assert sorted(roles) == ["[/x]", "corrupt", "nullicon", "zgood"]
+    assert all("image" not in roles[name] for name in ("[/x]", "corrupt", "nullicon"))
+    assert roles["zgood"]["image"] == "icons/zgood.png"
+    assert not (out / "icons" / "corrupt.png").exists()
+    output = capsys.readouterr().out.replace("\n", "")
+    assert output.count("Warning:") == 3
+    assert "nullicon has no icon" in output
+    assert "Could not convert the icon" in output
+    assert "Icon for [/x] not found" in output
+
+
+def test_migrate_help_matches_spec(capsys, monkeypatch):
+    """The help text matches the documented command-line surface."""
+    monkeypatch.setenv("COLUMNS", "200")
+    with pytest.raises(SystemExit):
+        _run_cmd(["--help"])
+    help_text = " ".join(capsys.readouterr().out.split())
+    for expected in (
+        "usage: botc_tokens migrate [-h] -i INPUT_DIR [output_dir]",
+        "Convert old directory structures to the new format.",
+        'output_dir The directory in which to output the new JSON and intermediates. (Default: ".")',
+        "-i INPUT_DIR, --input INPUT_DIR The old directory to convert.",
+    ):
+        assert expected in help_text
 
 
 def test_migrate_flat_input_dir(tmp_path):

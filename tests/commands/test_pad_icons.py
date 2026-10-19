@@ -72,6 +72,20 @@ def test_fully_transparent_warns(input_dir, capsys):
     assert not (input_dir / "blank_padded.png").exists()
 
 
+def test_corrupt_icon_warns_and_continues(input_dir, capsys):
+    """An unreadable icon is warned about by name and the icons after it are still padded."""
+    (input_dir / "[bold]corrupt.png").write_bytes(b"this is not a png")
+    assert sorted(p.name for p in input_dir.iterdir())[0] == "[bold]corrupt.png"
+
+    assert _run_cmd([str(input_dir)]) == 0
+
+    out = capsys.readouterr().out.replace("\n", "")
+    assert "Warning" in out
+    assert "[bold]corrupt.png" in out
+    assert (input_dir / "one_padded.png").exists()
+    assert (input_dir / "tight_padded.webp").exists()
+
+
 def test_no_icons(tmp_path, capsys):
     """An empty directory is an error."""
     assert _run_cmd([str(tmp_path)]) == 1
