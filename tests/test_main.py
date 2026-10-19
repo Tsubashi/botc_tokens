@@ -37,3 +37,10 @@ def test_all_commands_help(capsys):
     """Display help menu from all commands."""
     for command in allowed_commands:
         _run_main_cmd([command, "--help"])
+
+
+def test_failing_command_exit_code(capsys):
+    """Exit with the command's return code and skip the Done! banner."""
+    with patch.dict(allowed_commands, {"boom": (lambda: 1, "always fails")}):
+        _run_main_cmd(["boom"], expected_exit=1)
+    assert "Done!" not in capsys.readouterr().out
