@@ -71,12 +71,12 @@ def run():
         output_path = Path(args.output_dir)
         overall_task = overall_progress.add_task("Creating Tokens...", total=len(roles))
         step_task = step_progress.add_task("Reading roles...")
-        for role in roles:
+        for role, role_path in roles:
             role_base = role.id if role.id is not None else role.name
             role_slug = ''.join(e for e in role_base.lower() if e.isalnum())
             step_progress.update(step_task, description=f"Creating Token for: {role.name}")
             # Make sure our target directory exists
-            role_output_path = output_path / str(role.home_script) / str(role.type)
+            role_output_path = output_path / role_path
             role_output_path.mkdir(parents=True, exist_ok=True)
 
             # Skip if the token already exists
@@ -157,10 +157,11 @@ def find_roles_from_json(json_files):
             if icon:
                 data['icon'] = str(json_file.parent / str(data.get('icon')))
             role = Role(id=data.get('id'), name=data.get('name', "Unknown"))
+            role_path = Path(str(data.get("home_script", "Unknown"))) / str(data.get("type", "Unknown"))
             for att in dir(role):
                 if att in data:
                     setattr(role, att, data[att])
-            roles.append(role)
+            roles.append((role, role_path))
         except json.JSONDecodeError as e:
             print(f"[red]Error:[/][bold] Could not decode JSON file:[/] {json_file}")
             print(f"- {str(e)}")
