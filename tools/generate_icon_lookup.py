@@ -16,6 +16,7 @@ PREFERRED_SUFFIX = {
     "minion": "_e",
     "demon": "_e",
     "traveler": "",
+    "traveller": "",
     "fabled": "",
 }
 
