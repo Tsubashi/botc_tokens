@@ -90,28 +90,47 @@ def test_token_components_zipped(zipped_package):
     token_components.close()
 
 
-def test_token_components_missing_files(component_package):
-    """Fail to load a package with missing files."""
-    # Remove a file
-    (component_package / "TokenBG.png").unlink()
+def test_sparse_directory_falls_back(component_package):
+    """Missing components in a directory package fall back to the built-in ones."""
+    (component_package / "Leaf3.png").unlink()
+    (component_package / "RoleName.ttf").unlink()
 
-    # Try to load the components
-    with pytest.raises(FileNotFoundError):
-        token_components = TokenComponents(component_package)
-        token_components.close()
-
-
-def test_token_components_zipped_incomplete(zipped_incomplete_package):
-    """Fail to load a zipped package with missing files."""
-    with pytest.raises(FileNotFoundError):
-        token_components = TokenComponents(zipped_incomplete_package)
-        token_components.close()
-
-
-def test_token_compoents_modified_package(tmp_path, component_package):
-    """Fail to dump a package that has been modified after loading."""
     token_components = TokenComponents(component_package)
-    (component_package / "TokenBG.png").unlink()
+    assert token_components.fallbacks == ["Leaf3.png", "RoleName.*"]
+    assert token_components.leaves[2]
+    assert token_components.RoleNameFont.parent == component_path
+    assert token_components.AbilityTextFont.parent == component_package
+    token_components.close()
+
+
+def test_sparse_zip_falls_back(zipped_incomplete_package):
+    """Missing components in a zip package fall back to the built-in ones."""
+    token_components = TokenComponents(zipped_incomplete_package)
+    assert token_components.fallbacks == ["TokenBG.png"]
+    assert token_components.role_bg
+    token_components.close()
+
+
+def test_sparse_pack_dumps_complete(tmp_path, component_package):
+    """A sparse package dumps as a complete one."""
+    (component_package / "Leaf3.png").unlink()
+    token_components = TokenComponents(component_package)
+    dump_path = tmp_path / "sparse_dump"
+    token_components.dump(dump_path)
+    for file in token_components.required_files:
+        assert next(dump_path.glob(file))
+    token_components.close()
+
+
+def test_missing_package_dir_raises(tmp_path):
+    """A component package path that does not exist is an error."""
     with pytest.raises(FileNotFoundError):
-        token_components.dump(tmp_path)
-        token_components.close()
+        TokenComponents(tmp_path / "nope")
+
+
+def test_not_a_zip_raises(tmp_path):
+    """A regular file that is not a zip is an error."""
+    bad = tmp_path / "bad.zip"
+    bad.write_text("not a zip")
+    with pytest.raises(zipfile.BadZipFile):
+        TokenComponents(bad)
