@@ -16,7 +16,7 @@ def _print_version():
 
 # Set up the dictionary of commands. The values are tuples, first the function to run, second the description.
 allowed_commands = {
-    "create": (create.run, "Create token images to match json files in a directory tree."),
+    "create": (create.run, "Create print-n-play sheets from a script JSON."),
     "dump-components": (dump_components.run, "Write all the default components to the specified directory."),
     "pad-icons": (
         pad_icons.run,
