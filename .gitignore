@@ -193,3 +193,11 @@ dmypy.json
 
 # pytype static type analyzer
 .pytype/
+
+# AI
+.openai/
+.claude/
+.bard/
+.perplexity/
+.superpowers/
+change-requests/
