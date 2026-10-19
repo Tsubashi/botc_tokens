@@ -127,6 +127,26 @@ def test_acquire_icon_missing_file_warns(tmp_path, capsys):
     assert "Could not load icon for Gone" in capsys.readouterr().out
 
 
+def test_acquire_icon_fully_transparent_warns(tmp_path, capsys):
+    """A fully transparent icon is warned about, not cached, and gives None."""
+    source = tmp_path / "source" / "blank.png"
+    source.parent.mkdir()
+    with make_image(20, 20) as blank:
+        blank.save(filename=str(source))
+    icons_dir = tmp_path / "icons"
+    icons_dir.mkdir()
+    assert acquire_icon(Role(id="Blank", name="Blank", icon=str(source)), icons_dir, incremental=False) is None
+    assert "Blank icon is fully transparent" in capsys.readouterr().out.replace("\n", "")
+    assert list(icons_dir.iterdir()) == []
+
+
+def test_acquire_icon_markup_in_name_is_escaped(tmp_path, fake_web, capsys):
+    """Rich markup in a role name is printed literally in the warning instead of raising."""
+    fake_web.routes[ICON_URL] = b"<html>"
+    assert acquire_icon(Role(id="odd", name="[/x]", icon=ICON_URL), tmp_path, incremental=False) is None
+    assert "Could not load icon for [/x]" in capsys.readouterr().out.replace("\n", "")
+
+
 def test_acquire_icon_fetch_error_warns(tmp_path, monkeypatch, capsys):
     """A failed fetch produces a warning and None."""
     def fail(url):

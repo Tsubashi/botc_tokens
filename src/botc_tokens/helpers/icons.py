@@ -5,6 +5,7 @@ from pathlib import Path
 
 # Third Party
 from rich import print
+from rich.markup import escape
 from wand.color import Color
 from wand.exceptions import WandException
 from wand.image import Image
@@ -65,14 +66,21 @@ def load_icon_bytes(icon: str) -> bytes:
 
 
 def acquire_icon(role: Role, icons_dir: Path, incremental: bool) -> Path | None:
-    """Acquire, pad, and store a role's icon as a PNG, returning its path or None."""
+    """Acquire, pad, and store a role's icon as a PNG, returning its path or None.
+
+    Icons that cannot be loaded or are fully transparent are warned about and give None; nothing is cached for them.
+    """
     if role.icon is None:
         return None
     target = icons_dir / f"{role.slug}.png"
     if incremental and target.exists():
         return target
+    name = escape(role.name or role.id)
     try:
         with Image(blob=load_icon_bytes(role.icon)) as image:
+            if is_blank(image):
+                print(f"[yellow]Warning:[/] The {name} icon is fully transparent; ignoring it.")
+                return None
             padded = pad_icon(image)
             result = padded or image
             result.format = "png"
@@ -80,6 +88,6 @@ def acquire_icon(role: Role, icons_dir: Path, incremental: bool) -> Path | None:
             if padded is not None:
                 padded.close()
     except (FetchError, ValueError, OSError, WandException) as e:
-        print(f"[yellow]Warning:[/] Could not load icon for {role.name or role.id}: {e}")
+        print(f"[yellow]Warning:[/] Could not load icon for {name}: {escape(str(e))}")
         return None
     return target

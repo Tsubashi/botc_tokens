@@ -1,6 +1,7 @@
 """Tests for the web helper."""
 # Standard Library
 import base64
+import http.client
 import io
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
@@ -9,7 +10,7 @@ from urllib.error import HTTPError, URLError
 import pytest
 
 # Application Specific
-from botc_tokens.helpers.web import decode_data_uri, fetch, FetchError, is_data_uri, is_url
+from botc_tokens.helpers.web import decode_data_uri, fetch, FETCH_TIMEOUT, FetchError, is_data_uri, is_url
 
 
 def ok_response(body=b"ok"):
@@ -31,6 +32,39 @@ def test_fetch_sends_honest_user_agent():
     request = mock_urlopen.call_args.args[0]
     assert request.headers["User-agent"].startswith("botc_tokens/")
     assert "github.com/Tsubashi/botc_tokens" in request.headers["User-agent"]
+
+
+def test_fetch_uses_timeout():
+    """Every request is made with a 30 second timeout."""
+    with patch("botc_tokens.helpers.web.urlopen", return_value=ok_response()) as mock_urlopen:
+        fetch("https://example.com/a")
+    assert FETCH_TIMEOUT == 30
+    assert mock_urlopen.call_args.kwargs["timeout"] == 30
+
+
+def test_fetch_retries_connection_reset():
+    """A dropped connection is retried."""
+    with patch("botc_tokens.helpers.web.urlopen", side_effect=[ConnectionResetError(), ok_response(b"yes")]), \
+            patch("botc_tokens.helpers.web.sleep") as mock_sleep:
+        assert fetch("https://example.com/a") == b"yes"
+    mock_sleep.assert_called_once_with(1.5)
+
+
+def test_fetch_gives_up_on_remote_disconnects():
+    """A server that keeps hanging up raises a FetchError after every attempt is used."""
+    errors = [http.client.RemoteDisconnected("closed")] * 3
+    with patch("botc_tokens.helpers.web.urlopen", side_effect=errors) as mock_urlopen, \
+            patch("botc_tokens.helpers.web.sleep"):
+        with pytest.raises(FetchError, match="closed"):
+            fetch("https://example.com/a")
+    assert mock_urlopen.call_count == 3
+
+
+def test_fetch_retries_bad_status_line():
+    """An HTTP protocol error that is not an OSError is retried."""
+    with patch("botc_tokens.helpers.web.urlopen", side_effect=[http.client.BadStatusLine("x"), ok_response(b"ok")]), \
+            patch("botc_tokens.helpers.web.sleep"):
+        assert fetch("https://example.com/a") == b"ok"
 
 
 def test_fetch_retries_then_succeeds():

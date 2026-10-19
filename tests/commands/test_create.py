@@ -82,6 +82,41 @@ def test_create_from_tpi_file(tmp_path, web, test_data_dir):
     assert (tokens / "washerwoman.png").is_file()
     assert (tokens / "homebrewone-reminder-1.png").is_file()
     assert (tokens / "homebrewone-reminder-2.png").is_file()
+    # The partial drunk entry overrides the team only; its name and reminder are back-filled from official data
+    assert (tokens / "drunk.png").is_file()
+    assert (tokens / "drunk-reminder-1.png").is_file()
+
+
+def test_create_homebrew_without_ability(tmp_path, web, capsys):
+    """A homebrew object without an ability renders with empty ability text and needs no official data."""
+    cache = tmp_path / "cache"
+    role = _solo()
+    del role["ability"]
+    script = _write_script(tmp_path / "noability.json", [role])
+
+    assert _run_cmd(["-o", str(tmp_path / "out"), "-m", str(cache), script]) == 0
+
+    assert (cache / "tokens_noability" / "solo.png").is_file()
+    assert ROLES_URL not in web.calls
+    assert NIGHTSHEET_URL not in web.calls
+    assert "skipped 0 roles" in _output(capsys)
+
+
+def test_create_corrupt_cached_icon(tmp_path, web, solo_script, capsys):
+    """An unreadable cached icon is reported, deleted, and the tokens are made without an icon."""
+    cache = tmp_path / "cache"
+    bad_icon = cache / "icons" / "solo.png"
+    bad_icon.parent.mkdir(parents=True)
+    bad_icon.write_bytes(b"this is not a png")
+
+    assert _run_cmd(["-o", str(tmp_path / "out"), "-m", str(cache), "--incremental", solo_script]) == 0
+
+    out = _output(capsys)
+    assert "Warning:" in out
+    assert "could not be read" in out
+    assert (cache / "tokens_solo" / "solo.png").is_file()
+    assert not bad_icon.exists()
+    assert SOLO_ICON_URL not in web.calls
 
 
 def test_create_from_url(tmp_path, web):
@@ -164,7 +199,7 @@ def test_create_duplicate_role_ids(tmp_path, web, capsys):
     assert _run_cmd(["-o", str(tmp_path / "out"), "-m", str(cache), script]) == 0
 
     assert sorted(p.name for p in (cache / "tokens_dupes").iterdir()) == ["imp-reminder-1.png", "imp.png"]
-    assert "Created 8 role tokens" in _output(capsys)
+    assert "Created 8 role tokens and 1 reminder tokens" in _output(capsys)
 
 
 def test_create_skips_unknown_reference(tmp_path, web, capsys):
@@ -287,6 +322,41 @@ def test_create_margin_too_large_exits_1(tmp_path, web, solo_script, capsys):
     assert _run_cmd(["-o", str(tmp_path / "out"), "--margin-horizontal", "120", solo_script]) == 1
 
     assert "margin is too large" in _output(capsys)
+
+
+@pytest.mark.parametrize("option", [
+    ["--role-diameter", "0"],
+    ["--dpi", "-1"],
+    ["--dpi", "1.5"],
+    ["--reminder-diameter", "nan"],
+    ["--paper-size", "100", "0"],
+    ["--margin-vertical", "-0.1"],
+    ["--padding", "inf"],
+])
+def test_create_rejects_bad_numbers(solo_script, capsys, option):
+    """Sizes and resolution must be positive, and margins and padding must not be negative."""
+    with pytest.raises(SystemExit) as e:
+        _run_cmd([*option, solo_script])
+    assert e.value.code == 2
+    assert option[0] in capsys.readouterr().err
+
+
+def test_create_accepts_zero_spacing():
+    """Margins and padding may be zero."""
+    with patch("sys.argv", ["botc_tokens", "create", "--padding", "0", "--margin-horizontal", "0", "script.json"]):
+        args = create._parse_args()
+    assert (args.padding, args.margin_horizontal) == (0.0, 0.0)
+
+
+def test_create_output_dir_is_a_file_exits_1(tmp_path, web, solo_script, capsys):
+    """An output path that exists but is not a directory is fatal before anything is rendered."""
+    not_a_dir = tmp_path / "out"
+    not_a_dir.write_text("x")
+
+    assert _run_cmd(["-o", str(not_a_dir), solo_script]) == 1
+
+    assert "Error:" in _output(capsys)
+    assert web.calls == []
 
 
 def test_create_token_too_large_exits_1(tmp_path, web, solo_script, capsys):

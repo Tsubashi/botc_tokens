@@ -1,6 +1,7 @@
 """Helpers for fetching remote resources and decoding data URIs."""
 # Standard Library
 import base64
+import http.client
 from time import sleep
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -13,6 +14,7 @@ REQUEST_HEADERS: dict[str, str] = {
 }
 FETCH_ATTEMPTS = 3
 FETCH_RETRY_DELAY = 1.5
+FETCH_TIMEOUT = 30
 
 
 class FetchError(RuntimeError):
@@ -42,12 +44,12 @@ def fetch(url: str) -> bytes:
     reason: object = "unknown error"
     for attempt in range(1, FETCH_ATTEMPTS + 1):
         try:
-            return urlopen(Request(url, headers=REQUEST_HEADERS)).read()
+            return urlopen(Request(url, headers=REQUEST_HEADERS), timeout=FETCH_TIMEOUT).read()
         except HTTPError as e:
             if e.code == 404:
                 raise FetchError(f"Unable to fetch {url}: not found") from e
             reason = e
-        except URLError as e:
+        except (URLError, OSError, http.client.HTTPException) as e:  # Connection resets, timeouts, bad responses
             reason = e
         if attempt < FETCH_ATTEMPTS:
             sleep(FETCH_RETRY_DELAY * attempt)

@@ -2,6 +2,7 @@
 # Standard Library
 import argparse
 from contextlib import nullcontext
+import math
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
@@ -35,6 +36,32 @@ DEFAULT_PADDING_MM = 0.0
 DEFAULT_PAPER_TYPE = "letter"
 
 
+def _checked_number(text: str, convert, allow_zero: bool):
+    """Convert a command line number, rejecting non-finite, negative, and (unless allowed) zero values."""
+    try:
+        number = convert(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"'{text}' is not a number") from None
+    if not math.isfinite(number) or number < 0 or (number == 0 and not allow_zero):
+        raise argparse.ArgumentTypeError(f"'{text}' must be {'zero or more' if allow_zero else 'greater than zero'}")
+    return number
+
+
+def _positive_int(text: str) -> int:
+    """Parse a whole number greater than zero."""
+    return _checked_number(text, int, allow_zero=False)
+
+
+def _positive_float(text: str) -> float:
+    """Parse a number greater than zero."""
+    return _checked_number(text, float, allow_zero=False)
+
+
+def _non_negative_float(text: str) -> float:
+    """Parse a number that is zero or more."""
+    return _checked_number(text, float, allow_zero=True)
+
+
 def _parse_args():
     """Parse the command line arguments."""
     parser = argparse.ArgumentParser(
@@ -55,28 +82,29 @@ def _parse_args():
                              "No effect if -m is not specified.")
     parser.add_argument("-c", "--components", type=str, default=None,
                         help="The directory or zip in which to find the token components. (leaves, backgrounds, etc.)")
-    parser.add_argument("--dpi", type=int, default=DEFAULT_DPI,
+    parser.add_argument("--dpi", type=_positive_int, default=DEFAULT_DPI,
                         help="The DPI to use for distance-to-pixel calculations, such as token diameters. "
                              f"(Default: {DEFAULT_DPI})")
-    parser.add_argument("--role-diameter", type=float, default=DEFAULT_ROLE_DIAMETER_MM,
+    parser.add_argument("--role-diameter", type=_positive_float, default=DEFAULT_ROLE_DIAMETER_MM,
                         help="The diameter (in mm) to use for role tokens. Components will be resized to fit. "
                              f"(Default: {DEFAULT_ROLE_DIAMETER_MM})")
-    parser.add_argument("--reminder-diameter", type=float, default=DEFAULT_REMINDER_DIAMETER_MM,
+    parser.add_argument("--reminder-diameter", type=_positive_float, default=DEFAULT_REMINDER_DIAMETER_MM,
                         help="The diameter (in mm) to use for reminder tokens. Components will be resized to fit. "
                              f"(Default: {DEFAULT_REMINDER_DIAMETER_MM})")
     parser.add_argument("--skip-ability-text", action="store_true",
                         help="Don't include ability text on the role tokens.")
-    parser.add_argument("--margin-horizontal", type=float, default=DEFAULT_MARGIN_MM,
+    parser.add_argument("--margin-horizontal", type=_non_negative_float, default=DEFAULT_MARGIN_MM,
                         help="The margin (in mm) between the left/right edge of the paper and the tokens. "
                              f"(Default: {DEFAULT_MARGIN_MM})")
-    parser.add_argument("--margin-vertical", type=float, default=DEFAULT_MARGIN_MM,
+    parser.add_argument("--margin-vertical", type=_non_negative_float, default=DEFAULT_MARGIN_MM,
                         help="The margin (in mm) between the top/bottom of the paper and the tokens. "
                              f"(Default: {DEFAULT_MARGIN_MM})")
-    parser.add_argument("--padding", type=float, default=DEFAULT_PADDING_MM,
+    parser.add_argument("--padding", type=_non_negative_float, default=DEFAULT_PADDING_MM,
                         help=f"The padding (in mm) between tokens. (Default: {DEFAULT_PADDING_MM})")
     paper = parser.add_mutually_exclusive_group()
     default_width, default_height = PAPER_SIZES_MM[DEFAULT_PAPER_TYPE]
-    paper.add_argument("--paper-size", nargs=2, type=float, metavar=("PAPER_WIDTH", "PAPER_HEIGHT"), default=None,
+    paper.add_argument("--paper-size", nargs=2, type=_positive_float, metavar=("PAPER_WIDTH", "PAPER_HEIGHT"),
+                       default=None,
                        help="The width and height (in mm) of the paper to use for the tokens. "
                             f"Cannot be used with --paper-type (Default: {default_width} {default_height})")
     paper.add_argument("--paper-type", type=str, choices=list(PAPER_SIZES_MM), metavar="PAPER_TYPE", default=None,
@@ -192,6 +220,19 @@ def _resolve_official(roles: list[Role], lookup: dict[str, str]) -> list[Role]:
     return resolved
 
 
+def _open_icon(icon_path: Path | None, role: Role) -> Image | None:
+    """Open a cached icon, deleting it and returning None if it cannot be read."""
+    if icon_path is None:
+        return None
+    try:
+        return Image(filename=str(icon_path))
+    except WandException as e:
+        print(f"[yellow]Warning:[/] The cached icon {escape(str(icon_path))} for {escape(role.name or role.id)} could "
+              f"not be read ({escape(str(e))}); deleting it and creating the tokens without an icon.")
+        icon_path.unlink(missing_ok=True)
+        return None
+
+
 def _render_role(role: Role, icon_path: Path | None, components: TokenComponents, tokens_dir: Path, args) -> int:
     """Render a role's token and reminder tokens, returning how many were written."""
     targets: list[tuple[Path, str | None]] = [(tokens_dir / f"{role.slug}.png", None)]
@@ -203,7 +244,7 @@ def _render_role(role: Role, icon_path: Path | None, components: TokenComponents
         targets = [(path, text) for path, text in targets if not path.exists()]
     if not targets:
         return 0
-    icon = Image(filename=str(icon_path)) if icon_path is not None else None
+    icon = _open_icon(icon_path, role)
     try:
         for path, text in targets:
             if text is None:
@@ -295,6 +336,10 @@ def _create(
 def run() -> int:
     """Create print-n-play sheets from a script JSON."""
     args = _parse_args()
+    output_dir = Path(args.output_dir)
+    if output_dir.exists() and not output_dir.is_dir():
+        print(f"[red]Error:[/] The output directory {escape(str(output_dir))} exists and is not a directory.")
+        return 1
     layout = _build_layout(args)
     try:
         layout.validate()
