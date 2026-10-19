@@ -67,7 +67,7 @@ def test_load_icon_lookup_user_paths(tmp_path):
     }
     user_file.write_text(json.dumps(data))
     lookup = load_icon_lookup(str(user_file))
-    assert lookup["homebrew"] == str(tmp_path / "icons/h.png")
+    assert lookup["homebrew"] == str((tmp_path / "icons/h.png").resolve())
     assert lookup["abs"] == "/abs/x.png"
     assert lookup["web"] == "https://x/y.png"
     assert lookup["data"] == "data:image/png;base64,AA=="
@@ -78,3 +78,11 @@ def test_official_ids():
     """Official ids come from the built-in lookup."""
     assert "imp" in official_ids()
     assert "homebrew" not in official_ids()
+
+
+def test_load_icon_lookup_relative_user_file(tmp_path, monkeypatch):
+    """A relative user file path still yields absolute resolved icon paths."""
+    (tmp_path / "icons.json").write_text(json.dumps({"homebrew": "icons/h.png"}))
+    monkeypatch.chdir(tmp_path)
+    lookup = load_icon_lookup("icons.json")
+    assert lookup["homebrew"] == str((tmp_path / "icons/h.png").resolve())

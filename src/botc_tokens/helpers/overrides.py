@@ -40,7 +40,7 @@ def load_icon_lookup(user_file: str | None) -> dict[str, str]:
         user_path = Path(user_file)
         for key, value in _load_with_schema(user_path, "icon_lookup_schema.json").items():
             if not (is_url(value) or is_data_uri(value)) and not Path(value).is_absolute():
-                value = str(user_path.parent / value)
+                value = str((user_path.parent / value).resolve())
             lookup[normalize_id(key)] = value
     return lookup
 
