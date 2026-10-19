@@ -17,13 +17,30 @@ PADDED_COVERAGE_LIMIT = 0.75
 PAD_TARGET_COVERAGE = 0.70
 
 
-def pad_icon(image: Image) -> Image | None:
-    """Return a padded copy of a tightly cropped icon, or None if the icon should be used as-is."""
+def _trim(image: Image) -> Image | None:
+    """Return a trimmed clone of the image, or None if the image is fully transparent."""
     trimmed = image.clone()
     trimmed.trim(color=Color("rgba(0,0,0,0)"), fuzz=0)
     if trimmed.page[2] < 0 or trimmed.page[3] < 0:
         # Fully transparent images trim to 1x1 with negative offsets
         trimmed.close()
+        return None
+    return trimmed
+
+
+def is_blank(image: Image) -> bool:
+    """Return whether the image is fully transparent."""
+    trimmed = _trim(image)
+    if trimmed is None:
+        return True
+    trimmed.close()
+    return False
+
+
+def pad_icon(image: Image) -> Image | None:
+    """Return a padded copy of a tightly cropped icon, or None if the icon should be used as-is."""
+    trimmed = _trim(image)
+    if trimmed is None:
         return None
     content = max(trimmed.width, trimmed.height)
     if image.width == image.height and content <= PADDED_COVERAGE_LIMIT * image.width:

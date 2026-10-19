@@ -9,7 +9,7 @@ from wand.image import Image
 
 # Application Specific
 from botc_tokens.helpers import icons
-from botc_tokens.helpers.icons import acquire_icon, load_icon_bytes, pad_icon
+from botc_tokens.helpers.icons import acquire_icon, is_blank, load_icon_bytes, pad_icon
 from botc_tokens.helpers.role import Role
 from botc_tokens.helpers.web import FetchError
 
@@ -50,6 +50,13 @@ def test_pad_icon_skips_fully_transparent():
     """A fully transparent icon is left alone."""
     with make_image(20, 20) as image:
         assert pad_icon(image) is None
+
+
+def test_is_blank():
+    """Only fully transparent images are blank."""
+    with make_image(20, 20) as blank, make_image(20, 20, content=(5, 5)) as content:
+        assert is_blank(blank)
+        assert not is_blank(content)
 
 
 def test_pad_icon_non_square_with_margin():
