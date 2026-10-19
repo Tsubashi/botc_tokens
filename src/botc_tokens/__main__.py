@@ -5,7 +5,7 @@ import sys
 from rich import print
 
 from .__version__ import version
-from .commands import create, dump_components, pad_icons
+from .commands import create, dump, pad_icons
 
 
 def _print_version():
@@ -17,7 +17,7 @@ def _print_version():
 # Set up the dictionary of commands. The values are tuples, first the function to run, second the description.
 allowed_commands = {
     "create": (create.run, "Create print-n-play sheets from a script JSON."),
-    "dump-components": (dump_components.run, "Write all the default components to the specified directory."),
+    "dump": (dump.run, "Write the built-in defaults (components, duplicates, icon lookup) to a directory."),
     "pad-icons": (
         pad_icons.run,
         "Find all icons in a folder and add extra space to match what the official icons do (if needed).",
