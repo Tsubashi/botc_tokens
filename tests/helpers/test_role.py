@@ -1,4 +1,7 @@
 """Test the role class."""
+# Standard Library
+import hashlib
+
 # Application Specific
 from botc_tokens.helpers.role import normalize_id, Role
 
@@ -24,6 +27,10 @@ def test_is_reference_and_has_gaps():
     partial = Role("x", name="X", team="demon", ability="a")
     assert not partial.is_reference()
     assert partial.has_gaps()
+    for field in ("name", "team", "ability"):
+        one_field = Role("x", **{field: "set"})
+        assert not one_field.is_reference()
+        assert one_field.has_gaps()
 
 
 def test_finalize_fills_defaults():
@@ -49,9 +56,24 @@ def test_finalize_fills_defaults():
 
 
 def test_slug():
-    """Make sure the slug is a filename-safe normalized id."""
-    assert Role("My Role/1").slug == "my_role-1"
+    """Make sure the slug is a filename-safe normalized id, with a hash when cleaning changed it."""
+    digest = hashlib.sha1("my role/1".encode("utf-8")).hexdigest()[:8]
+    assert Role("My Role/1").slug == f"my_role-1-{digest}"
     assert Role("My_Role").normalized_id == "myrole"
+    assert Role("Fortune_Teller").slug == "fortuneteller"
+
+
+def test_slug_empty_after_cleaning():
+    """An id with no filename-safe characters gets a hashed placeholder slug."""
+    digest = hashlib.sha1("éè".encode("utf-8")).hexdigest()[:8]
+    assert Role("éè").slug == f"role-{digest}"
+
+
+def test_slug_distinct_non_ascii_ids():
+    """Two different ids that clean to the same text still get different slugs."""
+    first, second = Role("été"), Role("àtà")
+    assert first.slug != second.slug
+    assert first.slug.startswith("t-") and second.slug.startswith("t-")
 
 
 def test_role_str():

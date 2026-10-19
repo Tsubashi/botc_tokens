@@ -8,12 +8,15 @@ from urllib.parse import urlparse
 # Third Party
 import jsonschema
 from rich import print
+from rich.markup import escape
 
 # Application Specific
 from .role import normalize_id, Role
 from .text_tools import format_filename
 from .web import fetch, FetchError, is_data_uri, is_url
 from .. import data_dir
+
+SCHEMA_MESSAGE_LIMIT = 200
 
 
 class ScriptError(RuntimeError):
@@ -77,7 +80,7 @@ def parse_script(source: ScriptSource) -> ParsedScript:
     if isinstance(data, list):
         return parse_tpi(data, source.base_dir)
     if isinstance(data, dict) and "characterList" in data:
-        return parse_bloodstar(data)
+        return parse_bloodstar(data, source.base_dir)
     raise ScriptError(
         "Unrecognized script format: expected a JSON array (official format) "
         "or a Bloodstar save file with a 'characterList'."
@@ -92,19 +95,44 @@ def _night_flag(number: object, reminder: object) -> bool | None:
 
 
 def _resolve_image(image: object, base_dir: Path | None, role_id: str) -> str | None:
-    """Work out the icon location for a TPI role."""
+    """Work out the icon location for a role.
+
+    URLs and data URIs are used as given. Local paths are only allowed for scripts read from a file, and relative ones
+    are resolved against the script's directory.
+    """
     if isinstance(image, list):
         image = image[0] if image else None
     if not isinstance(image, str) or not image:
         return None
     if is_url(image) or is_data_uri(image):
         return image
+    if base_dir is None:
+        print(f"[yellow]Warning:[/] Cannot use the local image '{escape(image)}' for {escape(role_id)} in a script "
+              "from a URL.")
+        return None
     if Path(image).is_absolute():
         return image
-    if base_dir is None:
-        print(f"[yellow]Warning:[/] Cannot resolve the local image '{image}' for {role_id} in a script from a URL.")
-        return None
     return str((base_dir / image).resolve())
+
+
+def _string_list(entry: dict, key: str) -> list[str] | None:
+    """Return a list-of-strings field from an entry, or None if it is absent or malformed (with a warning)."""
+    if key not in entry:
+        return None
+    value = entry[key]
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return list(value)
+    print(f"[yellow]Warning:[/] Ignoring '{key}' for {escape(entry['id'])}: expected a list of strings.")
+    return None
+
+
+def _tpi_reminders(entry: dict) -> list[str] | None:
+    """Return the concatenated reminders of a TPI entry, or None if it specifies none."""
+    reminders = _string_list(entry, "reminders")
+    global_reminders = _string_list(entry, "remindersGlobal")
+    if reminders is None and global_reminders is None:
+        return None
+    return (reminders or []) + (global_reminders or [])
 
 
 def _role_from_tpi_entry(entry: object, base_dir: Path | None) -> Role | None:
@@ -112,7 +140,7 @@ def _role_from_tpi_entry(entry: object, base_dir: Path | None) -> Role | None:
     if isinstance(entry, str):
         return Role(entry)
     if not isinstance(entry, dict) or not isinstance(entry.get("id"), str):
-        print(f"[yellow]Warning:[/] Skipping script entry without an id: {entry!r}")
+        print(f"[yellow]Warning:[/] Skipping script entry without an id: {escape(repr(entry))}")
         return None
     role = Role(entry["id"])
     if len(entry) == 1:
@@ -121,8 +149,7 @@ def _role_from_tpi_entry(entry: object, base_dir: Path | None) -> Role | None:
     team = entry.get("team")
     role.team = "traveler" if team == "traveller" else team
     role.ability = entry.get("ability")
-    if "reminders" in entry or "remindersGlobal" in entry:
-        role.reminders = list(entry.get("reminders", [])) + list(entry.get("remindersGlobal", []))
+    role.reminders = _tpi_reminders(entry)
     role.first_night = _night_flag(entry.get("firstNight"), entry.get("firstNightReminder"))
     role.other_nights = _night_flag(entry.get("otherNight"), entry.get("otherNightReminder"))
     role.affects_setup = entry.get("setup")
@@ -136,7 +163,9 @@ def parse_tpi(data: list, base_dir: Path | None) -> ParsedScript:
     try:
         jsonschema.validate(data, schema)
     except jsonschema.ValidationError as e:
-        print(f"[yellow]Warning:[/] The script does not match the official schema: {e.message}")
+        message = e.message if len(e.message) <= SCHEMA_MESSAGE_LIMIT else e.message[:SCHEMA_MESSAGE_LIMIT] + "..."
+        print(f"[yellow]Warning:[/] The script does not match the official schema at {escape(e.json_path)}: "
+              f"{escape(message)}")
     name = None
     roles = []
     for entry in data:
@@ -156,10 +185,22 @@ def _lines(text: object) -> list[str]:
     return [line.strip() for line in text.split("\n") if line.strip()]
 
 
-def _role_from_bloodstar_entry(entry: object, first_order: list, other_order: list) -> Role | None:
+def _night_order(order: object) -> list[str]:
+    """Return the normalized ids of a Bloodstar night order, treating anything but a list as empty."""
+    if not isinstance(order, list):
+        return []
+    return [normalize_id(i) for i in order if isinstance(i, str)]
+
+
+def _role_from_bloodstar_entry(
+        entry: object,
+        first_order: list[str],
+        other_order: list[str],
+        base_dir: Path | None
+) -> Role | None:
     """Build a role from a Bloodstar character, or None if it should not be exported."""
     if not isinstance(entry, dict) or not isinstance(entry.get("id"), str):
-        print(f"[yellow]Warning:[/] Skipping Bloodstar character without an id: {entry!r}")
+        print(f"[yellow]Warning:[/] Skipping Bloodstar character without an id: {escape(repr(entry))}")
         return None
     if entry.get("export") is False:
         return None
@@ -176,22 +217,22 @@ def _role_from_bloodstar_entry(entry: object, first_order: list, other_order: li
         first_night=normalized in first_order and bool(first_reminder),
         other_nights=normalized in other_order and bool(other_reminder),
         affects_setup=entry.get("setup"),
-        icon=entry.get("styledImage") or None,
+        icon=_resolve_image(entry.get("styledImage"), base_dir, entry["id"]),
     )
 
 
-def parse_bloodstar(data: dict) -> ParsedScript:
+def parse_bloodstar(data: dict, base_dir: Path | None) -> ParsedScript:
     """Parse a Bloodstar save file."""
     characters = data["characterList"]
     if not isinstance(characters, list):
         raise ScriptError("The Bloodstar 'characterList' must be a list.")
     meta = data.get("meta")
     name = meta.get("name") if isinstance(meta, dict) else None
-    first_order = [normalize_id(i) for i in data.get("firstNightOrder", []) if isinstance(i, str)]
-    other_order = [normalize_id(i) for i in data.get("otherNightOrder", []) if isinstance(i, str)]
+    first_order = _night_order(data.get("firstNightOrder"))
+    other_order = _night_order(data.get("otherNightOrder"))
     roles = []
     for entry in characters:
-        role = _role_from_bloodstar_entry(entry, first_order, other_order)
+        role = _role_from_bloodstar_entry(entry, first_order, other_order, base_dir)
         if role is not None:
             roles.append(role)
     return ParsedScript(name=name, roles=roles)

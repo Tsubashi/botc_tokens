@@ -104,6 +104,18 @@ def test_fill_night_flags_and_missing_reminders(official):
     assert role.affects_setup is False
 
 
+@pytest.mark.parametrize("reminders, global_reminders", [(None, "ABC"), ("ABC", ["A", 3]), ({"a": 1}, None)])
+def test_fill_malformed_feed_reminders(official, reminders, global_reminders):
+    """Feed reminders that are not lists of strings count as empty."""
+    official.roles["imp"] = {
+        "id": "imp", "name": "Imp", "team": "demon", "ability": "a",
+        "reminders": reminders, "remindersGlobal": global_reminders,
+    }
+    role = Role("imp")
+    official.fill_role(role)
+    assert role.reminders == []
+
+
 def test_fill_unknown_returns_false(official):
     """Unknown ids are left alone."""
     role = Role("fortuneteller")

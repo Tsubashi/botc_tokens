@@ -1,6 +1,7 @@
 """A class to represent a role in a script."""
 # Standard Library
 from dataclasses import dataclass
+import hashlib
 
 # Application Specific
 from .text_tools import format_filename
@@ -45,12 +46,21 @@ class Role:
 
     @property
     def slug(self) -> str:
-        """Return a filename-safe form of the normalized id."""
-        return format_filename(self.normalized_id)
+        """Return a filename-safe form of the normalized id.
+
+        Ids that are not already filename-safe get a short hash of the normalized id appended, so that two ids that
+        clean to the same text (or to nothing) still get distinct files.
+        """
+        normalized = self.normalized_id
+        clean = format_filename(normalized)
+        if clean == normalized:
+            return clean
+        digest = hashlib.sha1(normalized.encode("utf-8"), usedforsecurity=False).hexdigest()[:8]
+        return f"{clean}-{digest}" if clean else f"role-{digest}"
 
     def is_reference(self) -> bool:
-        """Return True if the name, team, or ability is missing."""
-        return self.name is None or self.team is None or self.ability is None
+        """Return True if the role is a bare reference: its name, team, and ability are all missing."""
+        return self.name is None and self.team is None and self.ability is None
 
     def has_gaps(self) -> bool:
         """Return True if any gap-fillable field is missing."""

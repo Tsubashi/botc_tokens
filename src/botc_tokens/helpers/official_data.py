@@ -14,6 +14,13 @@ class OfficialDataError(RuntimeError):
     """Raised when the official data cannot be fetched or understood."""
 
 
+def _string_list(value: object) -> list[str]:
+    """Return a feed value as a list of strings, treating any other shape as empty."""
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return list(value)
+    return []
+
+
 class OfficialData:
     """The official roles and night order, fetched from the official feeds."""
 
@@ -62,7 +69,7 @@ class OfficialData:
         if role.ability is None:
             role.ability = entry["ability"]
         if role.reminders is None:
-            role.reminders = list(entry.get("reminders", [])) + list(entry.get("remindersGlobal", []))
+            role.reminders = _string_list(entry.get("reminders")) + _string_list(entry.get("remindersGlobal"))
         if role.affects_setup is None:
             role.affects_setup = bool(entry.get("setup", False))
         if role.first_night is None:

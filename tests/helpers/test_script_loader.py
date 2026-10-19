@@ -70,7 +70,8 @@ def test_parse_tpi_entries(test_data_dir, capsys):
     assert two.affects_setup is False
     assert two.icon == "https://example.test/two.png"
     assert drunk.team == "outsider"
-    assert drunk.is_reference()
+    assert not drunk.is_reference()  # A partial override, back-filled from official data because its id is official
+    assert drunk.has_gaps()
     # The fixture deliberately uses homebrew ids and a partial override, which the official schema rejects.
     assert capsys.readouterr().out.count("Warning") == 1
 
@@ -94,11 +95,40 @@ def test_parse_tpi_images(tmp_path):
     assert roles[4].other_nights is True
 
 
-def test_parse_tpi_relative_image_from_url_warns(capsys):
-    """A relative image from a URL script cannot be resolved."""
-    roles = parse_tpi([{"id": "x", "name": "x", "team": "minion", "ability": "", "image": "a.png"}], None).roles
+@pytest.mark.parametrize("image", ["a.png", "/abs/a.png"])
+def test_parse_tpi_local_image_from_url_warns(capsys, image):
+    """A local image, relative or absolute, in a script from a URL is treated as missing."""
+    roles = parse_tpi([{"id": "x", "name": "x", "team": "minion", "ability": "", "image": image}], None).roles
     assert roles[0].icon is None
     assert "Warning" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("value", [None, "ONE", ["ONE", 3]])
+def test_parse_tpi_malformed_reminders(capsys, value):
+    """Reminders that are not a list of strings are warned about and treated as absent."""
+    entry = {"id": "x", "name": "X", "team": "minion", "ability": "", "reminders": value}
+    roles = parse_tpi([entry, dict(entry, id="y", remindersGlobal=["G"])], None).roles
+    assert roles[0].reminders is None
+    assert roles[1].reminders == ["G"]
+    assert "Ignoring 'reminders' for x" in capsys.readouterr().out.replace("\n", "")
+
+
+def test_parse_tpi_schema_warning_is_short(capsys):
+    """The schema warning names the failing location and does not dump a whole data URI."""
+    payload = "QUJD" * 200
+    entry = {"id": "x", "name": "x", "team": "nope", "ability": "", "image": f"data:image/png;base64,{payload}"}
+    parse_tpi([entry], None)
+    out = capsys.readouterr().out.replace("\n", "")
+    assert "schema at $" in out
+    assert payload not in out
+    assert "QUJD" * 60 not in out
+
+
+def test_parse_tpi_markup_in_entry_is_escaped(capsys):
+    """Rich markup in a skipped entry is printed literally instead of raising."""
+    assert parse_tpi([{"name": "[/x] [bold]"}], None).roles == []
+    out = capsys.readouterr().out.replace("\n", "")
+    assert "[/x] [bold]" in out
 
 
 def test_parse_tpi_schema_warning(capsys):
@@ -135,17 +165,34 @@ def test_parse_bloodstar(test_data_dir, capsys):
 def test_parse_bloodstar_bad_shapes(capsys):
     """Structural problems are errors or skipped entries."""
     with pytest.raises(ScriptError):
-        parse_bloodstar({"characterList": "nope"})
+        parse_bloodstar({"characterList": "nope"}, None)
     parsed = parse_bloodstar({
         "meta": "odd",
         "characterList": [{"name": "no id"}, "junk", {"id": "ok", "team": "minion"}],
         "firstNightOrder": ["ok", 5],
         "otherNightOrder": [None],
-    })
+    }, None)
     assert parsed.name is None
     assert [r.id for r in parsed.roles] == ["ok"]
     assert parsed.roles[0].first_night is False
     assert capsys.readouterr().out.count("Warning") == 2
+
+
+def test_parse_bloodstar_null_night_orders():
+    """Night orders that are null or not lists count as empty."""
+    character = {"id": "ok", "firstNightReminder": "Wake", "otherNightReminder": "Wake"}
+    parsed = parse_bloodstar({"characterList": [character], "firstNightOrder": None, "otherNightOrder": "ok"}, None)
+    assert (parsed.roles[0].first_night, parsed.roles[0].other_nights) == (False, False)
+
+
+def test_parse_bloodstar_images(tmp_path, capsys):
+    """Relative styled images resolve against the script directory; local images from a URL script are dropped."""
+    data = {"characterList": [{"id": "a", "styledImage": "img/a.png"}]}
+    assert parse_bloodstar(data, tmp_path).roles[0].icon == str((tmp_path / "img" / "a.png").resolve())
+    assert parse_bloodstar(data, None).roles[0].icon is None
+    assert "Warning" in capsys.readouterr().out
+    source = ScriptSource(data, tmp_path, "s")
+    assert parse_script(source).roles[0].icon == str((tmp_path / "img" / "a.png").resolve())
 
 
 def test_parse_script_dispatch(tmp_path):
