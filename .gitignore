@@ -201,3 +201,4 @@ dmypy.json
 .perplexity/
 .superpowers/
 change-requests/
+botc_tokens_defaults/

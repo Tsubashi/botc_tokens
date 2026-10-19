@@ -43,15 +43,6 @@ def expect_exit(expected_code=1):
     assert e.value.code == expected_code
 
 
-@contextmanager
-def expect_exit_with_output(capsys, expected_text, expected_code=1):
-    """Ensure a function exits, and writes an expected string to stdout or stderr."""
-    with expect_exit(expected_code):
-        yield
-    output = capsys.readouterr()
-    assert (expected_text in output.out) or (expected_text in output.err)
-
-
 class FakeWeb:
     """A fake network layer that serves canned responses for urlopen."""
 

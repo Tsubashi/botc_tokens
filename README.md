@@ -29,52 +29,97 @@ export MAGICK_HOME=/opt/homebrew/
 **For a full walkthrough and for more component packages, see the 
 [example repository](https://github.com/Tsubashi/botc_tokens-Examples).**
 
-The main script is run through its entrypoint `botc_tokens`. For example, you might use the `update` command to download
-the latest assets from the web, and then the `create` command to generate the tokens, followed by a `group` command to 
-organize them into a single printable sheet using a json file from the [official script tool](https://script.bloodontheclocktower.com/). 
-You can use the `--help` flag to see the available commands and options.
+The tool is run through its entrypoint `botc_tokens`. There are four working commands (`create`, `dump`, `migrate`,
+and `pad-icons`) plus `version`. Use `--help` on any of them to see every option.
 
-### Updating from the web
-If you want to create experimental tokens for your in-person games, you can use the `update` command to download the
-current list from the [official role data](https://release.botc.app/resources/data/roles.json), filling in any gaps
-(such as icons) from the [official wiki](https://wiki.bloodontheclocktower.com/). This is an incremental update, so it 
-will only download assets that are not already present in the local folder. We highly recommend double-checking the
-resulting entries, especially the reminder token section. While the utility does its best to guess, it isn't perfect.
-If you already know the reminder tokens, you can create a JSON file for the utility to use. See the 
-[example repository](https://github.com/Tsubashi/botc_tokens-Examples) for an example of the format.
+### Quick start
+Give `create` a script JSON (a file or a URL) and it produces print-ready PDFs. You can export a script from the
+[official script tool](https://script.bloodontheclocktower.com/) and pass its URL or the downloaded file:
 ```bash
-botc_tokens update --output-dir /path/to/inputs --reminders /path/to/reminders.json
+botc_tokens create https://example.com/my-script.json -o printables
+```
+This writes `roles.pdf` and `reminders.pdf` into `printables/`. Characters listed by bare ID (such as
+`"washerwoman"`) are filled in from the official data, and their icons are downloaded automatically. Characters you
+define yourself are used as written; any field you leave out of an official character (its ability text, say) is
+filled in from the official data.
+
+If you build your script in Bloodstar, pass its save file instead. The format is detected
+automatically:
+```bash
+botc_tokens create my-bloodstar-save.json -o printables
 ```
 
-The official data labels each role with a short edition code (for example `tb`, `bmr`, `snv`, or `carousel`), and
-roles are sorted into folders by that code. Use `--script-filter` to only pull roles from a matching edition:
+Icons are expected to carry transparent padding around the artwork, as the official icons do. Tightly cropped icons
+are padded automatically when they are fetched, so homebrew art works without any preparation.
+
+### Paper and sizes
+All sizes are in millimeters. Pick a paper preset with `--paper-type` (`letter`, `legal`, `a4`, or `a5`; the default
+is `letter`) or give exact dimensions with `--paper-size WIDTH HEIGHT`. The two options cannot be combined.
 ```bash
-botc_tokens update --output-dir /path/to/inputs --script-filter carousel
+botc_tokens create script.json -o printables --paper-type a4
+botc_tokens create script.json -o printables --paper-size 215.9 279.4 --margin-horizontal 5 --padding 1
+```
+Other options include `--dpi` (default 300), `--role-diameter` (46 mm), `--reminder-diameter` (26 mm),
+`--margin-horizontal`, `--margin-vertical`, `--padding`, `--grid` (use a grid layout instead of close packing), and
+`--skip-ability-text`.
+
+### Keeping intermediate files and caching
+By default the icons and individual token images are thrown away once the PDFs are made. Pass `-m` to keep them:
+```bash
+botc_tokens create script.json -o printables -m work
+```
+This leaves `work/icons/<role_id>.png` and `work/tokens_<script name>/` (one PNG per role and per reminder token),
+which is handy if you want the individual images. Add `--incremental` to reuse what is already there instead of
+downloading and drawing everything again:
+```bash
+botc_tokens create script.json -o printables -m work --incremental
+```
+**Caching caveat:** the icon cache is keyed by role ID only. If two scripts share one `-m` folder and both define a
+homebrew character with the same ID, whichever icon was cached first is reused. Likewise, changing a character's
+`image` URL will not refresh an icon that is already cached. To refresh an icon, delete `icons/<role_id>.png` from the
+`-m` folder (or run once without `--incremental`).
+
+### Custom components
+Token art (backgrounds, leaves, fonts) is called a component pack. To start from the built-in one, dump it, edit
+the files, and pass the folder (or a zip of it) back in:
+```bash
+botc_tokens dump components my_components
+botc_tokens create script.json -o printables --components my_components
+```
+Packs may be sparse: any file you leave out falls back to the built-in one, and `create` prints which ones it
+used. See the [example repository](https://github.com/Tsubashi/botc_tokens-Examples) for ready-made packs.
+
+### Overriding duplicates and icons
+Some roles need several tokens (the Imp, for example, is printed four times by default). Dump the built-in table,
+change it, and pass it back in:
+```bash
+botc_tokens dump duplicates my_defaults
+botc_tokens create script.json -o printables --duplicates my_defaults/duplicates.json
+```
+Roles that do not give an `image` get their icon from a built-in table of official icons. You can add or replace
+entries with a JSON file that maps role IDs to URLs, `data:` URIs, or local paths (relative to that file):
+```bash
+botc_tokens dump icon-lookup my_defaults
+botc_tokens create script.json -o printables --icon-lookup my_defaults/icon_lookup.json
+```
+An icon given in the script itself always wins over the table. A role with no icon at all gets a token without one,
+and a warning. `botc_tokens dump all` writes the components, duplicates, and icon lookup together.
+
+### Migrating from older versions
+Earlier versions used `update`, `create`, and `group` with a folder of per-role JSON files. Those commands are gone.
+Convert an old input folder into one script JSON per script, plus a shared `icons/` folder:
+```bash
+botc_tokens migrate -i /path/to/old/inputs new_scripts
+botc_tokens create new_scripts/my_script.json -o printables
 ```
 
-If you would rather use your own list of roles (for example a homebrew script, or a copy of the official data), pass
-a local file or URL with `--custom-list`:
+### Preparing hand-made icons
+`create` pads icons automatically, but if you want to inspect or pre-pad your own artwork, `pad-icons` finds every
+PNG and WebP in a folder and adds the transparent padding the official icons have (icons that already have it are
+left alone). Without `-i` the results are saved beside the originals as `<name>_padded`; with `-i` the originals are
+overwritten:
 ```bash
-botc_tokens update --output-dir /path/to/inputs --custom-list /path/to/roles.json
-```
-
-### Creating tokens
-Once you have your role info, whether from the `update` command or from your own creation, you can use the `create`
-command to generate the tokens. This will create a folder with the role name and a subfolder for each token type. If you
-would like to customize the appearance of the tokens, you can use the `--component-dir` option to specify where to
-find your custom components. Check the [example repository](https://github.com/Tsubashi/botc_tokens-Examples) 
-for an example of the expected structure.
-```bash
-botc_tokens create /path/to/inputs -o /path/to/tokens --components /path/to/components
-```
-
-### Grouping tokens
-Once you have created your token images, you can use the `group` command to organize the tokens into a single 
-printable sheet. This command can take a directory or a JSON file with desired role grouping, which follows the
-formatting of the [official script tool](https://script.bloodontheclocktower.com/).
-
-```bash
-botc_tokens group /path/to/script.json --token-dir /path/to/tokens --output-dir /path/to/printables
+botc_tokens pad-icons /path/to/icons --in-place
 ```
 
 ## And that's it!

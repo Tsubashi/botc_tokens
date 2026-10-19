@@ -39,6 +39,11 @@ def test_all_commands_help(capsys):
         _run_main_cmd([command, "--help"])
 
 
+def test_command_table_matches_spec():
+    """Expose exactly the documented commands."""
+    assert set(allowed_commands) == {"create", "dump", "migrate", "pad-icons", "version"}
+
+
 def test_failing_command_exit_code(capsys):
     """Exit with the command's return code and skip the Done! banner."""
     with patch.dict(allowed_commands, {"boom": (lambda: 1, "always fails")}):

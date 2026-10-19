@@ -54,7 +54,7 @@ def main():
 
     if args.command not in allowed_commands:
         print("[bold red]Error:[/] Unrecognized command")
-        print(parser.print_help())
+        parser.print_help()
         exit(-1)
 
     # Invoke the subcommand

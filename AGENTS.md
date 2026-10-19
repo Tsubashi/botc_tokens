@@ -2,7 +2,7 @@
 
 ## Overview
 
-- This repository contains the `botc_tokens` Python CLI for creating, updating, trimming, and grouping Blood on the Clocktower token assets.
+- This repository contains the `botc_tokens` Python CLI for Blood on the Clocktower tokens. It has four working commands: `create` (script JSON file or URL to printable PDF sheets, in one step), `dump` (write the built-in components, duplicates, and icon lookup for customizing), `migrate` (convert old input trees to a script JSON), and `pad-icons` (add official-style padding to icons).
 - Application code lives in `src/botc_tokens/`.
 - Tests live in `tests/`.
 - Project configuration lives in `pyproject.toml`.
