@@ -9,6 +9,8 @@ import pytest
 from wand.image import Image
 
 # Application Specific
+from botc_tokens.helpers import sheet_builder
+from botc_tokens.helpers.printable import Printable
 from botc_tokens.helpers.role import Role
 from botc_tokens.helpers.sheet_builder import build_sheets, LayoutError, SheetLayout
 
@@ -60,6 +62,59 @@ def test_build_sheets_no_reminders_no_pdf(tmp_path, tokens_dir):
     assert build_sheets([_role("a")], tokens_dir, output, _layout(), {}) == (1, 0)
     assert (output / "roles.pdf").exists()
     assert not (output / "reminders.pdf").exists()
+
+
+def test_build_sheets_reminders_once_per_role(tmp_path, tokens_dir):
+    """A role listed twice gets a role token per listing but its reminders only once."""
+    assert build_sheets([_role("b", 2), _role("b", 2)], tokens_dir, tmp_path / "out", _layout(), {}) == (2, 2)
+
+
+def test_build_sheets_removes_stale_pdfs(tmp_path, tokens_dir):
+    """A sheet from an earlier run is removed when this run writes no pages of that kind."""
+    output = tmp_path / "out"
+    output.mkdir()
+    (output / "reminders.pdf").write_text("stale")
+    assert build_sheets([_role("a")], tokens_dir, output, _layout(), {}) == (1, 0)
+    assert (output / "roles.pdf").exists()
+    assert not (output / "reminders.pdf").exists()
+
+
+def test_build_sheets_markup_in_id_is_escaped(tmp_path, tokens_dir, capsys):
+    """Rich markup in a role id is printed literally in the missing-token warning instead of raising."""
+    assert build_sheets([_role("[/x]")], tokens_dir, tmp_path / "out", _layout(), {}) == (0, 0)
+    assert "No token found for [/x]" in capsys.readouterr().out.replace("\n", "")
+
+
+def test_build_sheets_narrow_page_uses_grid(tmp_path, tokens_dir, monkeypatch, capsys):
+    """A page too narrow for inset close-packed rows falls back to a grid for that sheet only."""
+    packing = {}
+
+    class SpyPrintable(Printable):
+        """Record the packing each sheet is created with."""
+
+        def __init__(self, output_dir, **kwargs):
+            """Record the packing, then create the sheet."""
+            packing[kwargs["basename"]] = kwargs["close_packing"]
+            super().__init__(output_dir, **kwargs)
+
+    monkeypatch.setattr(sheet_builder, "Printable", SpyPrintable)
+    layout = _layout(page_width=90)  # Inset role rows need 1.5 * 64 = 96px; reminder rows need 48px
+    assert build_sheets([_role("a"), _role("legion")], tokens_dir, tmp_path / "out", layout, {}) == (2, 0)
+    assert packing == {"roles": False, "reminders": True}
+    assert "too narrow to close pack role tokens" in capsys.readouterr().out.replace("\n", "")
+
+    packing.clear()
+    build_sheets([_role("a")], tokens_dir, tmp_path / "grid", _layout(page_width=90, close_packing=False), {})
+    assert packing == {"roles": False, "reminders": False}
+
+
+def test_layout_close_packing_fits():
+    """Close packing fits when the printable width holds an inset row plus padding."""
+    assert _layout(page_width=96).close_packing_fits(64)
+    assert not _layout(page_width=95).close_packing_fits(64)
+    assert not _layout(page_width=100, padding=5).close_packing_fits(64)
+    assert _layout(page_width=120, margin_horizontal=12).close_packing_fits(64)
+    assert not _layout(page_width=119, margin_horizontal=12).close_packing_fits(64)
 
 
 def test_build_sheets_missing_reminder_skipped(tmp_path, tokens_dir):

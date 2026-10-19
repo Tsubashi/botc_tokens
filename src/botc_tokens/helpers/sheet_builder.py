@@ -5,6 +5,7 @@ from pathlib import Path
 
 # Third Party
 from rich import print
+from rich.markup import escape
 
 # Application Specific
 from .printable import Printable
@@ -40,6 +41,18 @@ class SheetLayout:
             if diameter > printable_width or diameter > printable_height:
                 raise LayoutError(f"The {label} token diameter ({diameter}px) does not fit in the printable area.")
 
+    def close_packing_fits(self, diameter: int) -> bool:
+        """Return whether a close-packed inset row of tokens of this diameter fits in the printable width."""
+        return self.page_width - 2 * self.margin_horizontal >= 1.5 * diameter + self.padding
+
+
+def _close_packing(layout: SheetLayout, label: str, diameter: int) -> bool:
+    """Return whether to close pack a sheet, warning and falling back to a grid if inset rows would be clipped."""
+    if layout.close_packing and not layout.close_packing_fits(diameter):
+        print(f"[yellow]Warning:[/] The page is too narrow to close pack {label} tokens; using a grid layout for them.")
+        return False
+    return layout.close_packing
+
 
 def build_sheets(
         roles: list[Role],
@@ -62,19 +75,23 @@ def build_sheets(
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    for basename in ("roles", "reminders"):  # A run that writes no pages of a kind must not leave an old sheet behind
+        (output_dir / f"{basename}.pdf").unlink(missing_ok=True)
     common = {
         "page_width": layout.page_width,
         "page_height": layout.page_height,
         "margin_horizontal": layout.margin_horizontal,
         "margin_vertical": layout.margin_vertical,
         "padding": layout.padding,
-        "close_packing": layout.close_packing,
         "dpi": layout.dpi,
     }
-    role_sheet = Printable(output_dir, basename="roles", diameter=layout.role_diameter, **common)
-    reminder_sheet = Printable(output_dir, basename="reminders", diameter=layout.reminder_diameter, **common)
+    role_sheet = Printable(output_dir, basename="roles", diameter=layout.role_diameter,
+                           close_packing=_close_packing(layout, "role", layout.role_diameter), **common)
+    reminder_sheet = Printable(output_dir, basename="reminders", diameter=layout.reminder_diameter,
+                               close_packing=_close_packing(layout, "reminder", layout.reminder_diameter), **common)
     role_count = 0
     reminder_count = 0
+    reminders_placed: set[str] = set()
     try:
         for role in roles:
             role_file = tokens_dir / f"{role.slug}.png"
@@ -83,7 +100,10 @@ def build_sheets(
                     role_sheet.add_token(role_file)
                     role_count += 1
             else:
-                print(f"[yellow]Warning:[/] No token found for {role.id}; skipping.")
+                print(f"[yellow]Warning:[/] No token found for {escape(role.id)}; skipping.")
+            if role.slug in reminders_placed:  # Reminder tokens are placed once per role, however often it is listed
+                continue
+            reminders_placed.add(role.slug)
             for number in range(1, len(role.reminders) + 1):
                 reminder_file = tokens_dir / f"{role.slug}-reminder-{number}.png"
                 if reminder_file.exists():
