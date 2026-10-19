@@ -4,7 +4,7 @@ A simple fan-made utility to help create custom tokens for the game Blood on the
 ![An example of tokens made by this utility](https://github.com/Tsubashi/botc_tokens-Examples/blob/31b118fc96e0f2aaa6b20d7547f2923a6c73ff34/example.jpg?raw=true)
 
 ## Installation
-To use this tool, you will need to have Python 3 installed on your computer. You can download it from the
+To use this tool, you will need to have Python 3.10 or newer installed on your computer. You can download it from the
 [official website](https://www.python.org/downloads/).
 
 Once you have Python installed, you can install these scripts using `pip`:
