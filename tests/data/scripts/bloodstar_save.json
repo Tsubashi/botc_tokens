@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "name": "Blood Script",
+    "author": "t"
+  },
+  "characterList": [
+    {
+      "id": "alpha",
+      "name": "Alpha",
+      "team": "traveller",
+      "ability": "Alpha ability.",
+      "setup": true,
+      "export": true,
+      "characterReminderTokens": "A ONE\n\n A TWO ",
+      "globalReminderTokens": "",
+      "firstNightReminder": "x",
+      "otherNightReminder": "",
+      "styledImage": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAADUExURf8AABniCTcAAAAKSURBVAjXY2AAAAACAAHiIbwzAAAAAElFTkSuQmCC"
+    },
+    {
+      "id": "beta",
+      "name": "Beta",
+      "team": "minion",
+      "ability": "Beta ability.",
+      "export": false
+    },
+    {
+      "id": "gamma",
+      "name": "Gamma",
+      "team": "demon",
+      "ability": "Gamma ability.",
+      "setup": false,
+      "characterReminderTokens": "",
+      "globalReminderTokens": "",
+      "firstNightReminder": "",
+      "otherNightReminder": "",
+      "styledImage": null
+    }
+  ],
+  "firstNightOrder": [
+    "alpha",
+    "gamma"
+  ],
+  "otherNightOrder": [
+    "alpha"
+  ]
+}

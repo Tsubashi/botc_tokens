@@ -4,37 +4,28 @@
   "type": "array",
   "default": [],
   "title": "Blood on the Clocktower Custom Script",
+  "minItems": 5,
+  "maxItems": 201,
   "items": {
     "oneOf": [
       {
         "type": "object",
         "title": "Script Character",
-        "required": [
-          "id",
-          "name",
-          "team",
-          "ability"
-        ],
-        "additionalProperties": true,
+        "required": ["id", "name", "team", "ability"],
+        "additionalProperties": false,
         "properties": {
           "id": {
             "type": "string",
-            "title": "Character ID, alphanumeric lowercase",
-            "examples": [
-              "washerwoman",
-              "lilmonsta",
-              "fanggu"
-            ]
+            "title": "Character ID, alphanumeric lowercase without spaces",
+            "pattern": "^[a-z0-9]+$",
+            "maxLength": 50,
+            "examples": ["washerwoman", "lilmonsta", "fanggu", "alhadikhia"]
           },
           "name": {
             "type": "string",
             "title": "Character name",
-            "maxLength": 20,
-            "examples": [
-              "Washer Woman",
-              "Lil' Monsta",
-              "Fang-Gu"
-            ]
+            "maxLength": 30,
+            "examples": ["Washerwoman", "Lil' Monsta", "Fang Gu", "Al-Hadikhia"]
           },
           "image": {
             "oneOf": [
@@ -42,14 +33,12 @@
                 "type": "string",
                 "format": "uri",
                 "title": "Character icon",
-                "examples": [
-                  "https://i.imgur.com/character-icon.png"
-                ]
+                "examples": ["https://i.imgur.com/character-icon.png"]
               },
               {
                 "type": "array",
                 "title": "Set of character icon URLs",
-                "description": "For non-traveler characters, the icons should be regular alignment and flipped alignment, for travelers they should be unaligned, good alignment and evil alignment",
+                "description": "For non-traveller characters, the icons should be regular alignment and flipped alignment, for travellers they should be unaligned, good alignment and evil alignment",
                 "minItems": 1,
                 "maxItems": 3,
                 "items": {
@@ -66,9 +55,9 @@
                     "https://imgur.com/minion_good.png"
                   ],
                   [
-                    "https://imgur.com/traveler.png",
-                    "https://imgur.com/traveler_good.png",
-                    "https://imgur.com/traveler_evil.png"
+                    "https://imgur.com/traveller.png",
+                    "https://imgur.com/traveller_good.png",
+                    "https://imgur.com/traveller_evil.png"
                   ]
                 ]
               }
@@ -82,41 +71,46 @@
               "outsider",
               "minion",
               "demon",
-              "traveler",
-              "fabled"
+              "traveller",
+              "fabled",
+              "loric"
             ]
           },
           "edition": {
             "type": "string",
             "title": "The edition ID",
-            "examples": [
-              "tb",
-              "bmr",
-              "snv",
-              "fallofrome"
-            ]
+            "maxLength": 50,
+            "examples": ["tb", "bmr", "snv", "fallofrome"]
           },
           "ability": {
             "type": "string",
             "title": "Character ability",
+            "maxLength": 250,
             "examples": [
               "You start knowing that 1 of 2 players is a particular Townsfolk.",
               "Each night, Minions choose who babysits Lil' Monsta's token \u0026 \"is the Demon\". A player dies each night*. [+1 Minion]",
               "Each night*, choose a player: they die. The 1st Outsider this kills becomes an evil Fang Gu \u0026 you die instead. [+1 Outsider]"
             ]
           },
+          "flavor": {
+            "type": "string",
+            "title": "Character flavor text",
+            "maxLength": 500,
+            "examples": [
+              "Bloodstains on a dinner jacket? No, this is cooking sherry. How careless.",
+              "Certainly madam, under normal circumstances, you may borrow the Codex Malificarium from the library vaults. However, you do not seem to be a member.",
+              "It is a fine night for a stroll, wouldn't you say, Mister Morozov? Or should I say... BARON Morozov?"
+            ]
+          },
           "firstNight": {
             "type": "number",
             "title": "First night wake-up priority. 0 means this character doesn't wake during the first night.",
-            "examples": [
-              37,
-              0,
-              15
-            ]
+            "examples": [37, 0, 15]
           },
           "firstNightReminder": {
             "type": "string",
             "title": "First night Storyteller reminder",
+            "maxLength": 500,
             "examples": [
               "Show the Townsfolk character token. Point to both the *TOWNSFOLK* and *WRONG* players.",
               "Wake all Minions, allow them to choose a babysitter :reminder:",
@@ -126,15 +120,12 @@
           "otherNight": {
             "type": "number",
             "title": "Other nights wake-up priority. 0 means this character doesn't wake during other nights.",
-            "examples": [
-              0,
-              10,
-              15
-            ]
+            "examples": [0, 10, 15]
           },
           "otherNightReminder": {
             "type": "string",
             "title": "Other nights Storyteller reminder",
+            "maxLength": 500,
             "examples": [
               "",
               "Wake all Minions, allow them to choose a babysitter :reminder: A player might die :reminder:",
@@ -143,30 +134,24 @@
           },
           "reminders": {
             "type": "array",
+            "maxItems": 20,
             "default": [],
             "title": "Character reminder tokens",
             "items": {
               "type": "string",
-              "maxLength": 20,
-              "examples": [
-                "Townsfolk",
-                "Wrong",
-                "Dead",
-                "Is The Demon"
-              ]
+              "maxLength": 30,
+              "examples": ["Townsfolk", "Wrong", "Dead", "Is The Demon"]
             }
           },
           "remindersGlobal": {
             "type": "array",
+            "maxItems": 20,
             "default": [],
             "title": "Global character reminder tokens, which will be selectable even when the character is not in play.",
             "items": {
               "type": "string",
-              "maxLength": 20,
-              "examples": [
-                "Drunk",
-                "Is The Philosopher"
-              ]
+              "maxLength": 25,
+              "examples": ["Drunk", "Is The Philosopher"]
             }
           },
           "setup": {
@@ -180,23 +165,18 @@
             "items": {
               "type": "object",
               "title": "An individual Jinx pair",
-              "required": [
-                "id",
-                "reason"
-              ],
+              "required": ["id", "reason"],
               "properties": {
                 "id": {
                   "type": "string",
                   "title": "The ID of the other character this one is jinxed with.",
-                  "examples": [
-                    "spy",
-                    "fanggu",
-                    "lilmonsta"
-                  ]
+                  "maxLength": 50,
+                  "examples": ["spy", "fanggu", "lilmonsta"]
                 },
                 "reason": {
                   "type": "string",
                   "title": "The Jinx explanation",
+                  "maxLength": 500,
                   "examples": [
                     "If the Cannibal gains the Butler ability, the Cannibal learns this.",
                     "The Mathematician learns if the Lunatic attacks a different player(s) than the real Demon attacked."
@@ -211,21 +191,20 @@
             "items": {
               "type": "object",
               "title": "A special app integration feature",
-              "required": [
-                "name",
-                "type"
-              ],
+              "required": ["name", "type"],
               "properties": {
                 "type": {
                   "type": "string",
                   "title": "The integration type, where the feature will be used.",
-                  "description": "Currently supported values are:\n selection - during character selection,\n signal - during night signaling,\n ability - when clicking on the character token,\n vote - during a vote,\n reveal - at the end of the game, before characters are revealed",
+                  "description": "Currently supported values are:\n selection - during character selection,\n signal - during night signaling,\n ability - when clicking on the character token,\n vote - during a vote,\n reveal - at the end of the game, before characters are revealed,\n player - an ability that can be initiated by the player",
                   "enum": [
                     "selection",
                     "ability",
                     "signal",
                     "vote",
-                    "reveal"
+                    "reveal",
+                    "player",
+                    "reminder"
                   ]
                 },
                 "name": {
@@ -239,11 +218,15 @@
                     "distribute-roles",
                     "bag-disabled",
                     "bag-duplicate",
+                    "evil-duplicate",
+                    "good-duplicate",
                     "multiplier",
                     "hidden",
                     "replace-character",
                     "player",
-                    "card"
+                    "card",
+                    "open-eyes",
+                    "public"
                   ]
                 },
                 "value": {
@@ -251,6 +234,7 @@
                     {
                       "type": "string",
                       "title": "Special ability text value",
+                      "maxLength": 50,
                       "description": "The text value that will be used by the special ability."
                     },
                     {
@@ -276,20 +260,21 @@
                 "global": {
                   "type": "string",
                   "title": "Global ability scope",
-                  "description": "If it's a global ability that can be used without the character being in play, this property defines on which characters it can be used. This does not work on Fabled, because they are not considered to be on the Script.",
+                  "description": "If it's a global ability that can be used without the character being in play, this property defines on which characters it can be used. This does not work on non-player characters, because they are not considered to be on the Script.",
                   "enum": [
                     "townsfolk",
                     "outsider",
                     "minion",
                     "demon",
-                    "traveler"
+                    "traveller",
+                    "dead"
                   ]
                 }
               },
               "examples": [
                 {
-                  "type": "signal",
-                  "name": "grimoire",
+                  "type": "player",
+                  "name": "open-eyes",
                   "time": "night"
                 },
                 {
@@ -320,12 +305,10 @@
             "team": "townsfolk",
             "firstNightReminder": "Show the Townsfolk character token. Point to both the *TOWNSFOLK* and *WRONG* players.",
             "otherNightReminder": "",
-            "reminders": [
-              "Townsfolk",
-              "Wrong"
-            ],
+            "reminders": ["Townsfolk", "Wrong"],
             "setup": false,
             "ability": "You start knowing that 1 of 2 players is a particular Townsfolk.",
+            "flavor": "Bloodstains on a dinner jacket? No, this is cooking sherry. How careless.",
             "firstNight": 37,
             "otherNight": 0
           }
@@ -334,64 +317,77 @@
       {
         "type": "string",
         "title": "Official character ID",
+        "maxLength": 20,
         "description": "If you want to include official characters in the script, it is sufficient to provide their ID as a string",
-        "examples": [
-          "soldier",
-          "imp",
-          "washerwoman"
-        ]
+        "examples": ["soldier", "imp", "washerwoman"]
       },
       {
         "type": "object",
         "title": "Script Metadata",
-        "required": [
-          "id",
-          "name"
-        ],
+        "required": ["id", "name"],
         "properties": {
           "id": {
             "type": "string",
             "title": "The ID property must be called '_meta' for the Script metadata object.",
-            "enum": [
-              "_meta"
-            ]
+            "enum": ["_meta"]
           },
           "name": {
             "type": "string",
             "title": "The script name",
-            "examples": [
-              "Fall of Rome",
-              "My Custom Homebrew"
-            ]
+            "maxLength": 50,
+            "examples": ["Fall of Rome", "My Custom Homebrew"]
           },
           "author": {
             "type": "string",
             "title": "The script author",
-            "examples": [
-              "The Pandemonium Institute",
-              "Your Name"
-            ]
+            "maxLength": 50,
+            "examples": ["The Pandemonium Institute", "Your Name"]
           },
           "logo": {
             "type": "string",
             "format": "uri",
+            "maxLength": 250,
             "title": "The script logo image",
-            "examples": [
-              "https://imgur.com/logo.png"
-            ]
+            "examples": ["https://imgur.com/logo.png"]
+          },
+          "hideTitle": {
+            "type": "boolean",
+            "title": "Whether the script title / author should be hidden on the app"
           },
           "background": {
             "type": "string",
             "format": "uri",
+            "maxLength": 250,
             "title": "The script background image",
+            "examples": ["https://imgur.com/background.jpg"]
+          },
+          "almanac": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 250,
+            "title": "A link to the script's almanac page",
             "examples": [
-              "https://imgur.com/background.jpg"
+              "https://beardytas.com/garden-of-djinn/the-ballad-of-seat-7/"
             ]
+          },
+          "bootlegger": {
+            "type": "array",
+            "title": "A list of homebrew rules that are to be used for this script",
+            "description": "Any (optional) homebrew rules that should be shown on the character sheet can be listed here, up to a limit of 10.",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "title": "A homebrew rule",
+              "examples": [
+                "If the Snake Charmer swaps with the Demon on the first night, they learn their Minions and Bluffs instead of the original Demon."
+              ]
+            }
           },
           "firstNight": {
             "type": "array",
             "title": "The relative First Night order of characters on this script.",
             "description": "A custom first night order for this script can be provided in the form of an array here, with optional special entries for 'dusk', 'minioninfo', 'demoninfo' and 'dawn'.",
+            "maxItems": 200,
             "items": {
               "type": "string",
               "title": "Character ID of an on-script character in the first night order"
@@ -418,6 +414,7 @@
             "type": "array",
             "title": "The relative Other Nights order of characters on this script.",
             "description": "A custom other night order for this script can be provided in the form of an array here, with optional special entries for 'dusk' and 'dawn'.",
+            "maxItems": 200,
             "items": {
               "type": "string",
               "title": "Character ID of an on-script character in the other night order"
@@ -453,19 +450,14 @@
         "type": "object",
         "title": "Official Character (deprecated)",
         "deprecated": true,
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false,
         "properties": {
           "id": {
             "type": "string",
+            "maxLength": 20,
             "title": "Official character ID",
-            "examples": [
-              "soldier",
-              "imp",
-              "washerwoman"
-            ]
+            "examples": ["soldier", "imp", "washerwoman"]
           }
         }
       }
