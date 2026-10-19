@@ -1,0 +1,27 @@
+import sys; sys.path.insert(0, "/Users/cscott/Projects/botc_tokens/.fuzz")
+from harness import run
+import os
+F = "/Users/cscott/Projects/botc_tokens/.fuzz"; IN = f"{F}/in2"; OUT = f"{F}/out4"; os.makedirs(OUT, exist_ok=True)
+run(["create", f"{IN}/image_junk.json", "-o", OUT], timeout=300)
+run(["create", f"{IN}/refs.json", "-o", OUT], timeout=300)
+run(["create", f"{IN}/refs_gap.json", "-o", OUT], timeout=300)
+run(["create", f"{IN}/refs_meta_only.json", "-o", OUT], timeout=300)
+run(["create", f"{IN}/many_roles.json", "-o", OUT, "--dpi", "72"], timeout=300)
+run(["create", f"{IN}/many_roles.json", "-o", OUT, "--dpi", "72", "--paper-size", "40", "40", "--role-diameter", "30", "--reminder-diameter", "20", "--margin-horizontal", "1", "--margin-vertical", "1"], timeout=300)
+run(["create", "https://example.com/", "-o", OUT], timeout=300)             # HTML not JSON
+run(["create", "https://example.com/nonexistent.json", "-o", OUT], timeout=300)  # 404
+run(["create", "https://httpbin.org/status/500", "-o", OUT], timeout=300)
+run(["create", "https://httpbin.org/bytes/200", "-o", OUT], timeout=300)
+run(["create", "https://httpbin.org/json", "-o", OUT], timeout=300)
+run(["create", "https://httpbin.org/redirect/3", "-o", OUT], timeout=300)
+run(["create", "http://localhost:1/x.json", "-o", OUT], timeout=300)
+run(["create", "HTTPS://EXAMPLE.COM/x.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com/a b.json", "-o", OUT], timeout=300)
+run(["create", "https://exa mple.com/x.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com:99999/x.json", "-o", OUT], timeout=300)
+run(["create", "https://user:pw@example.com/x.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com/x.json#frag", "-o", OUT], timeout=300)
+run(["create", "https://example.com/é.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com/\u0000.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com/x.json\n", "-o", OUT], timeout=300)
+run(["create", "https://example.com/x.json\r\nX-Injected: 1", "-o", OUT], timeout=300)

@@ -1,0 +1,16 @@
+import sys; sys.path.insert(0, "/Users/cscott/Projects/botc_tokens/.fuzz")
+from harness import run
+F = "/Users/cscott/Projects/botc_tokens/.fuzz"; IN = f"{F}/in2"; OUT = f"{F}/out4"
+run(["create", f"{IN}/image_junk2.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com/x.json\n", "-o", OUT], timeout=300)
+run(["create", "https://example.com/x.json\r\nX-Injected: 1", "-o", OUT], timeout=300)
+run(["create", "https://exämple.com/x.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com/x.json?q=é", "-o", OUT], timeout=300)
+run(["create", "https://example.com/x.json#é", "-o", OUT], timeout=300)
+run(["create", "https://:@example.com/x.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com:abc/x.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com:-1/x.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com:99999/x.json", "-o", OUT], timeout=300)
+run(["create", "https://[fe80::1%25eth0]/x.json", "-o", OUT], timeout=300)
+run(["create", "https://example.com/%zz.json", "-o", OUT], timeout=300)
+run(["create", "https://\u0000/x.json".replace("\u0000", "%00"), "-o", OUT], timeout=300)
