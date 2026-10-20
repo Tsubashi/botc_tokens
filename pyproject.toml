@@ -37,6 +37,11 @@ test = [
     "pytest-cov",
     "pypdf"
     ]
+build = [
+    "nuitka",
+    "ordered-set",
+    "zstandard"
+    ]
 
 [project.scripts]
 botc_tokens = "botc_tokens:__main__.main"
