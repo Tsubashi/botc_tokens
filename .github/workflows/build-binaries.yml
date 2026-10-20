@@ -79,7 +79,7 @@ jobs:
 
       - name: Smoke test (offline, bundled icons)
         run: |
-          BIN=build/nuitka/botc_tokens.dist/botc-tokens
+          BIN=build/nuitka/botc_tokens.dist/botc_tokens
           [ "${{ matrix.os }}" = windows ] && BIN="$BIN.exe"
           env -u MAGICK_HOME "$BIN" version
           env -u MAGICK_HOME "$BIN" create tests/data/scripts/bloodstar_save.json -o smoke-offline
@@ -90,13 +90,13 @@ jobs:
         if: matrix.os == 'linux'
         run: |
           docker run --rm -v "$PWD:/work" -w /work ubuntu:22.04 bash -c '
-            build/nuitka/botc_tokens.dist/botc-tokens version &&
-            build/nuitka/botc_tokens.dist/botc-tokens create tests/data/scripts/bloodstar_save.json -o smoke-container &&
+            build/nuitka/botc_tokens.dist/botc_tokens version &&
+            build/nuitka/botc_tokens.dist/botc_tokens create tests/data/scripts/bloodstar_save.json -o smoke-container &&
             test -s smoke-container/roles.pdf'
 
       - name: Smoke test (online, official roles over HTTPS)
         run: |
-          BIN=build/nuitka/botc_tokens.dist/botc-tokens
+          BIN=build/nuitka/botc_tokens.dist/botc_tokens
           [ "${{ matrix.os }}" = windows ] && BIN="$BIN.exe"
           env -u MAGICK_HOME "$BIN" create tests/data/scripts/tpi_script.json -o smoke-online
           test -s smoke-online/roles.pdf

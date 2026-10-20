@@ -10,19 +10,19 @@ A simple fan-made utility to help create custom tokens for the game Blood on the
 
 Every [release](https://github.com/Tsubashi/botc_tokens/releases) comes with ready-to-run builds for Windows (x86_64),
 macOS (Apple Silicon and Intel), and Linux (x86_64). They bundle their own copy of ImageMagick, so nothing else needs
-to be installed. Download the archive for your platform, unpack it, and run the `botc-tokens` program inside the
+to be installed. Download the archive for your platform, unpack it, and run the `botc_tokens` program inside the
 unpacked `botc_tokens` folder:
 
 ```bash
 tar xzf botc_tokens-*-macos-arm64.tar.gz      # or unzip the .zip on Windows
-./botc_tokens/botc-tokens version
-./botc_tokens/botc-tokens create my-script.json -o printables
+./botc_tokens/botc_tokens version
+./botc_tokens/botc_tokens create my-script.json -o printables
 ```
 
 Notes:
 
 - The macOS builds need macOS 11 or newer and are not code-signed, so Gatekeeper will refuse to open them the first
-  time. Either right-click the `botc-tokens` program and choose *Open*, or clear the quarantine flag with
+  time. Either right-click the `botc_tokens` program and choose *Open*, or clear the quarantine flag with
   `xattr -dr com.apple.quarantine botc_tokens` after unpacking.
 - Windows SmartScreen may warn about an unrecognised program for the same reason; choose *More info*, then *Run anyway*.
 - Setting `MAGICK_HOME` makes the binary use that ImageMagick instead of the bundled one.

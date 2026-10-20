@@ -8,6 +8,7 @@ Without ``--conda-prefix`` the binary still builds but needs a system ImageMagic
 """
 # Standard Library
 import argparse
+from importlib.resources import files as package_files
 from pathlib import Path
 import platform
 import shutil
@@ -24,9 +25,12 @@ from botc_tokens.__version__ import version
 
 LAUNCHER = Path(__file__).resolve().parent / "nuitka" / "launcher.py"
 PROJECT_LICENSE = Path(__file__).resolve().parent.parent / "LICENSE"
-# The executable cannot be called botc_tokens: the package data folder of that name has to sit beside it.
-BINARY_NAME = "botc-tokens"
-DIST_NAME = "botc_tokens.dist"
+BINARY_NAME = "botc_tokens"
+DIST_NAME = f"{BINARY_NAME}.dist"
+# Package data cannot live in a botc_tokens/ folder beside an executable of the same name, so it goes here instead and
+# botc_tokens.helpers.bundled_imagemagick.find_data_dir picks it up at runtime.
+PACKAGE_DATA = Path(str(package_files("botc_tokens") / "data"))
+DATA_DIR_NAME = "botc_tokens_data"
 COMPILED_DIST_NAME = f"{LAUNCHER.stem}.dist"
 ARCHIVE_ROOT = "botc_tokens"
 SYSTEM_TAGS = {"Darwin": "macos", "Windows": "windows", "Linux": "linux"}
@@ -41,7 +45,7 @@ def nuitka_command(python: str, output_dir: Path) -> list[str]:
         "--assume-yes-for-downloads",
         f"--output-dir={output_dir}",
         "--include-package=botc_tokens",
-        "--include-package-data=botc_tokens",
+        f"--include-data-dir={PACKAGE_DATA}={DATA_DIR_NAME}",
         f"--output-filename={BINARY_NAME}",
         str(LAUNCHER),
     ]

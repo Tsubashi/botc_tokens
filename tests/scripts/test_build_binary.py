@@ -7,7 +7,7 @@ import zipfile
 
 # Third Party
 import build_binary
-from build_binary import archive_name, LAUNCHER, main, make_archive, nuitka_command, platform_tag
+from build_binary import archive_name, LAUNCHER, main, make_archive, nuitka_command, PACKAGE_DATA, platform_tag
 import pytest
 
 
@@ -15,6 +15,11 @@ def test_launcher_exists():
     """The Nuitka entry point must not be named botc_tokens.py, or it shadows the package on Nuitka's path."""
     assert LAUNCHER.name == "launcher.py"
     assert LAUNCHER.is_file()
+
+
+def test_package_data_points_at_the_installed_package():
+    """The data directory Nuitka copies is the installed package's own."""
+    assert (PACKAGE_DATA / "role_schema.json").is_file()
 
 
 def test_nuitka_command_flags(tmp_path):
@@ -25,9 +30,11 @@ def test_nuitka_command_flags(tmp_path):
     assert "--assume-yes-for-downloads" in cmd
     assert f"--output-dir={tmp_path}" in cmd
     assert "--include-package=botc_tokens" in cmd
-    assert "--include-package-data=botc_tokens" in cmd
+    # Package data goes beside the executable, not into a botc_tokens/ folder that would collide with its name.
+    assert "--include-package-data=botc_tokens" not in cmd
+    assert cmd[cmd.index("--include-package=botc_tokens") + 1] == f"--include-data-dir={PACKAGE_DATA}=botc_tokens_data"
     assert "--include-package-data=certifi" not in cmd  # Nuitka includes certifi's CA bundle on its own
-    assert "--output-filename=botc-tokens" in cmd  # botc_tokens would collide with the package data folder
+    assert "--output-filename=botc_tokens" in cmd
     assert cmd[-1] == str(LAUNCHER)
 
 
@@ -60,7 +67,7 @@ def test_archive_name_extension():
 def _make_dist(tmp_path):
     dist = tmp_path / "botc_tokens.dist"
     (dist / "imagemagick" / "lib").mkdir(parents=True)
-    (dist / "botc-tokens").write_text("binary")
+    (dist / "botc_tokens").write_text("binary")
     (dist / "imagemagick" / "lib" / "libMagickWand-7.Q16HDRI.10.dylib").write_text("lib")
     (dist / "imagemagick" / "lib" / "libMagickWand-7.Q16HDRI.dylib").symlink_to("libMagickWand-7.Q16HDRI.10.dylib")
     return dist
@@ -73,7 +80,7 @@ def test_make_archive_tar_keeps_symlinks(tmp_path):
     with tarfile.open(archive) as tar:
         names = tar.getnames()
         link = tar.getmember("botc_tokens/imagemagick/lib/libMagickWand-7.Q16HDRI.dylib")
-    assert "botc_tokens/botc-tokens" in names
+    assert "botc_tokens/botc_tokens" in names
     assert link.issym()
 
 
@@ -83,7 +90,7 @@ def test_make_archive_zip(tmp_path):
     archive = make_archive(dist, tmp_path / "out.zip")
     with zipfile.ZipFile(archive) as archive_file:
         names = archive_file.namelist()
-    assert "botc_tokens/botc-tokens" in names
+    assert "botc_tokens/botc_tokens" in names
     assert all(name.startswith("botc_tokens/") for name in names)
 
 
@@ -93,7 +100,7 @@ def _fake_compile(tmp_path, record):
         output_dir = Path(next(arg for arg in cmd if arg.startswith("--output-dir=")).split("=", 1)[1])
         dist = output_dir / "launcher.dist"
         dist.mkdir(parents=True)
-        (dist / "botc-tokens").write_text("binary")
+        (dist / "botc_tokens").write_text("binary")
         return subprocess.CompletedProcess(cmd, 0)
 
     return run
@@ -135,7 +142,7 @@ def test_main_replaces_a_stale_dist(tmp_path, monkeypatch):
 
     assert main(["--output-dir", str(output_dir), "--system", "Linux", "--machine", "x86_64"]) == 0
     assert not (output_dir / "botc_tokens.dist" / "stale-file").exists()
-    assert (output_dir / "botc_tokens.dist" / "botc-tokens").is_file()
+    assert (output_dir / "botc_tokens.dist" / "botc_tokens").is_file()
 
 
 def test_main_skip_compile_without_prefix_warns(tmp_path, monkeypatch, capsys):

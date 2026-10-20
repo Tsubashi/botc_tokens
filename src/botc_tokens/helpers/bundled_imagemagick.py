@@ -1,8 +1,9 @@
-"""Point wand, ImageMagick, and TLS at the copies bundled beside a standalone binary.
+"""Point wand, ImageMagick, TLS, and the package data at the copies bundled beside a standalone binary.
 
-The standalone builds ship an ``imagemagick`` directory next to the executable. When that directory exists, the
-environment variables below must be set before ``wand`` is imported, which is why ``botc_tokens/__init__.py`` calls
-:func:`activate` first thing. For ordinary pip installs the directory does not exist and nothing happens.
+The standalone builds ship an ``imagemagick`` directory and a ``botc_tokens_data`` directory next to the executable.
+When the ImageMagick directory exists, the environment variables below must be set before ``wand`` is imported, which
+is why ``botc_tokens/__init__.py`` calls :func:`activate` first thing. For ordinary pip installs neither directory
+exists and nothing happens.
 """
 # Standard Library
 import os
@@ -15,12 +16,22 @@ from typing import MutableMapping
 import certifi
 
 BUNDLE_DIR_NAME = "imagemagick"
+DATA_DIR_NAME = "botc_tokens_data"
+
+
+def _beside_executable(executable: str, name: str) -> Path | None:
+    candidate = Path(executable).resolve().parent / name
+    return candidate if candidate.is_dir() else None
 
 
 def find_bundle(executable: str) -> Path | None:
-    """Return the bundle directory beside the given executable, or None if there is none."""
-    candidate = Path(executable).resolve().parent / BUNDLE_DIR_NAME
-    return candidate if candidate.is_dir() else None
+    """Return the ImageMagick bundle directory beside the given executable, or None if there is none."""
+    return _beside_executable(executable, BUNDLE_DIR_NAME)
+
+
+def find_data_dir(executable: str) -> Path | None:
+    """Return the package data directory beside the given executable, or None if there is none."""
+    return _beside_executable(executable, DATA_DIR_NAME)
 
 
 def _first_module_dir(bundle: Path, kind: str) -> Path | None:

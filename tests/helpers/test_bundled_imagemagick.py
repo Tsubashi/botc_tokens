@@ -7,7 +7,7 @@ import sys
 import certifi
 
 # Application Specific
-from botc_tokens.helpers.bundled_imagemagick import activate, bundle_environment, find_bundle
+from botc_tokens.helpers.bundled_imagemagick import activate, bundle_environment, find_bundle, find_data_dir
 
 
 def _make_full_layout(bundle):
@@ -135,3 +135,21 @@ def test_activate_defaults_use_process_state(monkeypatch, tmp_path):
     """Default to the running executable, the real environment, and the real platform."""
     monkeypatch.setattr(sys, "executable", str(tmp_path / "botc_tokens"))
     assert activate() == {}
+
+
+def test_find_data_dir_beside_executable(tmp_path):
+    """Standalone binaries keep the package data in botc_tokens_data beside the executable."""
+    (tmp_path / "botc_tokens_data").mkdir()
+    assert find_data_dir(str(tmp_path / "botc_tokens")) == tmp_path / "botc_tokens_data"
+
+
+def test_find_data_dir_absent(tmp_path):
+    """Pip installs have no such directory and fall back to package resources."""
+    assert find_data_dir(str(tmp_path / "python")) is None
+
+
+def test_package_data_dir_falls_back_to_package_resources():
+    """Under pytest there is no bundled data directory, so data_dir is the package's own data folder."""
+    import botc_tokens
+    assert (botc_tokens.data_dir / "role_schema.json").is_file()
+    assert (botc_tokens.component_path / "RoleName.ttf").is_file()
