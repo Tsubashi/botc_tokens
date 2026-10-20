@@ -69,13 +69,21 @@ jobs:
         run: python scripts/build_binary.py --conda-prefix "$MAMBA_ROOT_PREFIX/envs/imagemagick" --output-dir build/nuitka
 
       - name: Remove the runner's own ImageMagick so the smoke tests cannot use it
+        if: matrix.os != 'windows'
         run: |
           case "${{ matrix.os }}" in
             linux)   sudo apt-get remove -y --purge 'libmagick*' imagemagick imagemagick-6-common || true ;;
             macos)   brew uninstall --ignore-dependencies --force imagemagick || true ;;
-            windows) reg delete "HKLM\SOFTWARE\ImageMagick" /f || true
-                     rm -rf "/c/Program Files/ImageMagick"* || true ;;
           esac
+
+      - name: Remove the runner's own ImageMagick so the smoke tests cannot use it (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          # wand reads this registry key before MAGICK_HOME, so it must be gone for the smoke test to mean anything.
+          Remove-Item -Path "HKLM:\SOFTWARE\ImageMagick" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "C:\Program Files\ImageMagick*" -Recurse -Force -ErrorAction SilentlyContinue
+          if (Test-Path "HKLM:\SOFTWARE\ImageMagick") { throw "ImageMagick registry key still present" }
 
       - name: Smoke test (offline, bundled icons)
         run: |

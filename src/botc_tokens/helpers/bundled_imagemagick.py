@@ -99,7 +99,12 @@ def activate(
     applied = {key: value for key, value in wanted.items() if key not in environ}
     environ.update(applied)
 
-    add_dll_directory = getattr(os, "add_dll_directory", None)
-    if system == "Windows" and add_dll_directory is not None:
-        add_dll_directory(str(bundle / "bin"))
+    if system == "Windows":
+        # wand consults the ImageMagick registry key before MAGICK_HOME, and only falls back to searching PATH, so the
+        # bundle must be first on PATH to win over a stale or foreign registry entry.
+        bin_dir = str(bundle / "bin")
+        applied["PATH"] = environ["PATH"] = ";".join(filter(None, (bin_dir, environ.get("PATH"))))
+        add_dll_directory = getattr(os, "add_dll_directory", None)
+        if add_dll_directory is not None:
+            add_dll_directory(bin_dir)
     return applied

@@ -153,3 +153,28 @@ def test_package_data_dir_falls_back_to_package_resources():
     import botc_tokens
     assert (botc_tokens.data_dir / "role_schema.json").is_file()
     assert (botc_tokens.component_path / "RoleName.ttf").is_file()
+
+
+def test_activate_prepends_bundle_bin_to_path_on_windows(tmp_path):
+    """Put the bundle first on PATH, since wand falls back to PATH when a registry key points elsewhere."""
+    (tmp_path / "imagemagick" / "bin").mkdir(parents=True)
+    environ = {"PATH": "C:\\Windows\\system32"}
+    applied = activate(str(tmp_path / "botc_tokens"), environ, "Windows")
+    assert environ["PATH"] == f"{tmp_path / 'imagemagick' / 'bin'};C:\\Windows\\system32"
+    assert applied["PATH"] == environ["PATH"]
+
+
+def test_activate_sets_path_on_windows_when_missing(tmp_path):
+    """A missing PATH is created rather than crashing."""
+    (tmp_path / "imagemagick" / "bin").mkdir(parents=True)
+    environ = {}
+    activate(str(tmp_path / "botc_tokens"), environ, "Windows")
+    assert environ["PATH"] == str(tmp_path / "imagemagick" / "bin")
+
+
+def test_activate_leaves_path_alone_elsewhere(tmp_path):
+    """POSIX library lookup does not use PATH, so it is left untouched."""
+    (tmp_path / "imagemagick").mkdir()
+    environ = {"PATH": "/usr/bin"}
+    activate(str(tmp_path / "botc_tokens"), environ, "Linux")
+    assert environ["PATH"] == "/usr/bin"
