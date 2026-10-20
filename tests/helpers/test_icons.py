@@ -117,14 +117,14 @@ def test_acquire_icon_bad_bytes_warns(tmp_path, fake_web, capsys):
     """Bytes that are not an image produce a warning and None."""
     fake_web.routes[ICON_URL] = b"<html>"
     assert acquire_icon(Role(id="Bad", name="Bad", icon=ICON_URL), tmp_path, incremental=False) is None
-    assert "Could not load icon for Bad" in capsys.readouterr().out
+    assert "Could not load icon for Bad" in capsys.readouterr().out.replace("\n", "")
 
 
 def test_acquire_icon_missing_file_warns(tmp_path, capsys):
     """A missing local file produces a warning, falling back to the id when unnamed."""
     role = Role(id="Gone", icon=str(tmp_path / "missing.png"))
     assert acquire_icon(role, tmp_path, incremental=False) is None
-    assert "Could not load icon for Gone" in capsys.readouterr().out
+    assert "Could not load icon for Gone" in capsys.readouterr().out.replace("\n", "")
 
 
 def test_acquire_icon_fully_transparent_warns(tmp_path, capsys):

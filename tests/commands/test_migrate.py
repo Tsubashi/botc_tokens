@@ -103,9 +103,8 @@ def test_migrate_icon_problems_warn_and_continue(tmp_path, capsys):
     assert "Icon for [/x] not found" in output
 
 
-def test_migrate_help_matches_spec(capsys, monkeypatch):
+def test_migrate_help_matches_spec(capsys):
     """The help text matches the documented command-line surface."""
-    monkeypatch.setenv("COLUMNS", "200")
     with pytest.raises(SystemExit):
         _run_cmd(["--help"])
     help_text = " ".join(capsys.readouterr().out.split())
@@ -133,7 +132,7 @@ def test_migrate_flat_input_dir(tmp_path):
 def test_migrate_missing_input_exits_1(tmp_path, capsys):
     """A missing input directory is an error."""
     assert _run_cmd(["-i", str(tmp_path / "nope"), str(tmp_path / "out")]) == 1
-    assert "does not exist" in capsys.readouterr().out
+    assert "does not exist" in capsys.readouterr().out.replace("\n", "")
 
 
 def test_migrate_no_roles_exits_1(tmp_path, capsys):
@@ -141,7 +140,7 @@ def test_migrate_no_roles_exits_1(tmp_path, capsys):
     (tmp_path / "inputs" / "Empty").mkdir(parents=True)
     (tmp_path / "inputs" / "file.txt").write_text("x")
     assert _run_cmd(["-i", str(tmp_path / "inputs"), str(tmp_path / "out")]) == 1
-    assert "No role JSON" in capsys.readouterr().out
+    assert "No role JSON" in capsys.readouterr().out.replace("\n", "")
 
 
 def test_migrated_script_feeds_create(tmp_path, fake_web):

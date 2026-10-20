@@ -89,7 +89,7 @@ def test_corrupt_icon_warns_and_continues(input_dir, capsys):
 def test_no_icons(tmp_path, capsys):
     """An empty directory is an error."""
     assert _run_cmd([str(tmp_path)]) == 1
-    assert "No icons found" in capsys.readouterr().out
+    assert "No icons found" in capsys.readouterr().out.replace("\n", "")
 
 
 def test_not_a_directory(tmp_path, capsys):

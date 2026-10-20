@@ -12,6 +12,16 @@ from botc_tokens.helpers.token_components import TokenComponents
 pytest.register_assert_rewrite("testhelpers")
 
 
+@pytest.fixture(autouse=True)
+def wide_console(monkeypatch):
+    """Keep rich from word-wrapping captured output at the 80-column non-TTY default.
+
+    Where the wrap lands depends on the length of tmp_path, which differs between CI and
+    local machines, so substring assertions on multi-word messages would otherwise be flaky.
+    """
+    monkeypatch.setenv("COLUMNS", "500")
+
+
 @pytest.fixture()
 def test_data_dir():
     """Set the data directory for the tests."""
