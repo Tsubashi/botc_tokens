@@ -9,8 +9,9 @@ import pytest
 
 # Application Specific
 from botc_tokens.helpers import config
-from botc_tokens.helpers.config import COMMAND_SECTIONS, config_file_paths, CONFIG_FILENAME, config_path, \
-    ConfigError, find_local_config, global_config_path, load_config_values, local_start_dir
+from botc_tokens.helpers.config import COMMAND_SECTIONS, config_epilog, config_file_paths, CONFIG_FILENAME, \
+    config_path, ConfigError, find_local_config, global_config_path, load_config_values, local_start_dir, \
+    merge_config_values, parse_args_with_config
 
 
 def _parser():
@@ -201,3 +202,106 @@ def test_non_utf8_file_is_error(tmp_path):
     path.write_bytes(b"[create]\nname = \xff\n")
     with pytest.raises(ConfigError, match="codec"):
         load_config_values(path, "create", _parser())
+
+
+def _write_global(isolated_config, text):
+    """Write the (patched) global config file."""
+    isolated_config.global_path.parent.mkdir(parents=True, exist_ok=True)
+    isolated_config.global_path.write_text(text)
+
+
+def _write_local(isolated_config, text, where=None):
+    """Write a local config file in the search start directory (or `where`) and return its path."""
+    path = (where or isolated_config.cwd) / CONFIG_FILENAME
+    path.write_text(text)
+    return path
+
+
+def test_merge_local_overrides_global_per_key():
+    """Later layers replace keys one at a time."""
+    merged = merge_config_values(_parser(), [{"name": "g", "count": 2}, {"name": "l"}])
+    assert merged == {"name": "l", "count": 2}
+
+
+def test_merge_later_layer_wins_whole_group():
+    """A layer that sets any member of a mutually exclusive group clears the others."""
+    merged = merge_config_values(_parser(), [{"kind": "a", "name": "g"}, {"size": [1.0, 2.0]}])
+    assert merged == {"size": [1.0, 2.0], "name": "g"}
+
+
+def test_parse_applies_layers_and_cli_wins(isolated_config, capsys):
+    """Global, then local, then the command line, and the loaded files are announced."""
+    _write_global(isolated_config, "[create]\nname = g\ncount = 2\nflag = true\n")
+    local = _write_local(isolated_config, "[create]\nname = l\n")
+    args = parse_args_with_config(_parser(), "create", ["--count", "9", "positional"])
+    assert (args.name, args.count, args.flag, args.pos) == ("l", 9, True, "positional")
+    out = capsys.readouterr().out
+    assert "Using config:" in out and str(isolated_config.global_path) in out and str(local) in out
+
+
+def test_parse_without_config_is_silent(isolated_config, capsys):
+    """No config files means built-in defaults and no output."""
+    args = parse_args_with_config(_parser(), "create", [])
+    assert (args.name, args.count, args.flag) == ("builtin", 1, False)
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("flag", ["-h", "--help"])
+def test_help_bypasses_config(isolated_config, capsys, flag):
+    """Help works even when a config file is broken, and does not mention config files."""
+    _write_local(isolated_config, "[create]\ncount = notanumber\n")
+    with pytest.raises(SystemExit) as e:
+        parse_args_with_config(_parser(), "create", [flag])
+    assert e.value.code == 0
+    assert "Using config" not in capsys.readouterr().out
+
+
+def test_config_error_exits_two_with_message(isolated_config, capsys):
+    """Config problems are reported like bad command line arguments."""
+    local = _write_local(isolated_config, "[create]\ncount = notanumber\n")
+    with pytest.raises(SystemExit) as e:
+        parse_args_with_config(_parser(), "create", [])
+    assert e.value.code == 2
+    err = capsys.readouterr().err
+    assert str(local) in err and "[create] count:" in err
+
+
+def test_cli_group_member_in_equals_form_clears_config_members(isolated_config):
+    """A group member on the command line, even as --opt=value, drops the config's other members."""
+    _write_local(isolated_config, "[create]\nsize = 1 2\n")
+    args = parse_args_with_config(_parser(), "create", ["--kind=b"])
+    assert (args.size, args.kind) == (None, "b")
+
+
+def test_config_group_member_survives_unrelated_cli_args(isolated_config):
+    """Command line arguments outside the group leave the config's group value alone."""
+    _write_local(isolated_config, "[create]\nkind = a\n")
+    args = parse_args_with_config(_parser(), "create", ["--count", "3"])
+    assert (args.size, args.kind) == (None, "a")
+
+
+def test_config_satisfies_required_option(isolated_config):
+    """A required option supplied by config is no longer required; without it, it still is."""
+    def parser():
+        p = argparse.ArgumentParser(prog="x")
+        p.add_argument("--needed", type=str, required=True)
+        return p
+    _write_local(isolated_config, "[migrate]\nneeded = fromconf\n")
+    assert parse_args_with_config(parser(), "migrate", []).needed == "fromconf"
+    with pytest.raises(SystemExit):
+        parse_args_with_config(parser(), "create", [])
+
+
+def test_relative_path_rebases_to_ancestor_config_dir(isolated_config, monkeypatch):
+    """A config file found in an ancestor directory anchors relative paths there, not at the cwd."""
+    nested = isolated_config.cwd / "deep" / "er"
+    nested.mkdir(parents=True)
+    monkeypatch.setattr(config, "local_start_dir", lambda: nested)
+    _write_local(isolated_config, "[create]\nwhere = cache\n")
+    assert parse_args_with_config(_parser(), "create", []).where == str(isolated_config.cwd / "cache")
+
+
+def test_epilog_names_locations(isolated_config):
+    """The help epilog tells users where config files are looked for."""
+    text = config_epilog()
+    assert CONFIG_FILENAME in text and str(isolated_config.global_path) in text

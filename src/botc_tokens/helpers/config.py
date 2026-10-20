@@ -9,6 +9,10 @@ import os
 from pathlib import Path
 import sys
 
+# Third Party
+from rich import print
+from rich.markup import escape
+
 CONFIG_FILENAME = "botc_tokens.conf"
 APP_DIR_NAME = "botc_tokens"
 COMMAND_SECTIONS: frozenset[str] = frozenset({"create", "dump", "migrate", "pad-icons"})
@@ -170,3 +174,72 @@ def load_config_values(path: Path, section: str, parser: argparse.ArgumentParser
             raise ConfigError(f"{path} [{section}] {key}: {e}") from None
     _check_group_conflicts(parser, set(values), path, section)
     return values
+
+
+def merge_config_values(parser: argparse.ArgumentParser, layers: list[dict[str, object]]) -> dict[str, object]:
+    """Merge config layers key by key, lowest priority first.
+
+    A layer that sets any member of a mutually exclusive group replaces the whole group, so a local file choosing
+    --paper-size discards a global --paper-type.
+    """
+    merged: dict[str, object] = {}
+    for layer in layers:
+        for group in parser._mutually_exclusive_groups:
+            dests = [action.dest for action in group._group_actions]
+            if any(dest in layer for dest in dests):
+                for dest in dests:
+                    merged.pop(dest, None)
+        merged.update(layer)
+    return merged
+
+
+def _cli_given_group_members(parser: argparse.ArgumentParser, argv: list[str]) -> set[str]:
+    """Return the dests of mutually exclusive group members that appear on the command line.
+
+    Argparse does the parsing, so --opt=value and abbreviations count. The parse is a trial run with sentinel
+    defaults; argparse errors (and help) exit here exactly as the real parse would.
+    """
+    sentinel = object()
+    actions = [action for group in parser._mutually_exclusive_groups for action in group._group_actions]
+    saved = [action.default for action in actions]
+    for action in actions:
+        action.default = sentinel
+    try:
+        namespace = parser.parse_args(argv)
+    finally:
+        for action, default in zip(actions, saved):
+            action.default = default
+    return {action.dest for action in actions if getattr(namespace, action.dest) is not sentinel}
+
+
+def parse_args_with_config(parser: argparse.ArgumentParser, command: str, argv: list[str]) -> argparse.Namespace:
+    """Parse `argv` with the parser's defaults replaced by the values the config files set for `command`."""
+    if "-h" in argv or "--help" in argv:
+        return parser.parse_args(argv)
+    paths = config_file_paths()
+    try:
+        layers = [load_config_values(path, command, parser) for path in paths]
+    except ConfigError as e:
+        parser.error(str(e))
+    if paths:
+        print(f"[bold]Using config:[/] {escape(', '.join(str(path) for path in paths))}")
+    merged = merge_config_values(parser, layers)
+    for action in parser._actions:
+        if action.required and action.dest in merged:
+            action.required = False
+    if parser._mutually_exclusive_groups:
+        given = _cli_given_group_members(parser, argv)
+        for group in parser._mutually_exclusive_groups:
+            dests = [action.dest for action in group._group_actions]
+            if any(dest in given for dest in dests):
+                for dest in dests:
+                    merged.pop(dest, None)
+    parser.set_defaults(**merged)
+    return parser.parse_args(argv)
+
+
+def config_epilog() -> str:
+    """Describe, for a command's --help, where option defaults can be set."""
+    return (f"Defaults for any --option can be set in a config file: {global_config_path()} applies to every run, "
+            f"and the nearest {CONFIG_FILENAME} in the current directory or one of its parents overrides it. "
+            "Command line arguments override both.")
