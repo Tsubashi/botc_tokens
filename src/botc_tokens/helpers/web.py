@@ -51,6 +51,8 @@ def fetch(url: str) -> bytes:
             reason = e
         except (URLError, OSError, http.client.HTTPException) as e:  # Connection resets, timeouts, bad responses
             reason = e
+        except ValueError as e:  # Malformed URLs, and ones with characters the request cannot carry
+            raise FetchError(f"Unable to fetch {url}: {e}") from e
         if attempt < FETCH_ATTEMPTS:
             sleep(FETCH_RETRY_DELAY * attempt)
     raise FetchError(f"Unable to fetch {url}: {reason}")

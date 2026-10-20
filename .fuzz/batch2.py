@@ -1,7 +1,8 @@
 import sys; sys.path.insert(0, "/Users/cscott/Projects/botc_tokens/.fuzz")
 from harness import run
 import os, json
-IN = "/Users/cscott/Projects/botc_tokens/.fuzz/in2"
+F = "/Users/cscott/Projects/botc_tokens/.fuzz"
+IN = f"{F}/in2"
 C = "/Users/cscott/Projects/botc_tokens/.fuzz/comp"
 OUT = "/Users/cscott/Projects/botc_tokens/.fuzz/out2"
 os.makedirs(OUT, exist_ok=True)

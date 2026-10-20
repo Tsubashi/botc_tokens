@@ -12,7 +12,7 @@ from wand.image import Image
 
 # Application Specific
 from .role import Role
-from .web import FetchError, decode_data_uri, fetch, is_data_uri, is_url
+from .web import decode_data_uri, fetch, FetchError, is_data_uri, is_url
 
 PADDED_COVERAGE_LIMIT = 0.75
 PAD_TARGET_COVERAGE = 0.70

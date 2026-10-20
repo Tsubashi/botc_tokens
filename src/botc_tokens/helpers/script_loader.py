@@ -71,6 +71,8 @@ def load_script_source(location: str) -> ScriptSource:
         raise ScriptError(f"{location} is not valid UTF-8 text.") from e
     except json.JSONDecodeError as e:
         raise ScriptError(f"{location} is not valid JSON: {e}") from e
+    except RecursionError as e:
+        raise ScriptError(f"{location} is nested too deeply to read.") from e
     return ScriptSource(data=data, base_dir=base_dir, fallback_name=fallback_name)
 
 
@@ -94,6 +96,23 @@ def _night_flag(number: object, reminder: object) -> bool | None:
     return (isinstance(number, (int, float)) and number > 0) or (isinstance(reminder, str) and bool(reminder))
 
 
+def _text_field(entry: dict, key: str) -> str | None:
+    """Return a text field from an entry, or None if it is absent or not a string (with a warning)."""
+    value = entry.get(key)
+    if value is None or isinstance(value, str):
+        return value
+    print(f"[yellow]Warning:[/] Ignoring '{key}' for {escape(entry['id'])}: expected text.")
+    return None
+
+
+def _script_name(value: object) -> str | None:
+    """Return a script name, or None if it is absent or not a string (with a warning)."""
+    if value is None or isinstance(value, str):
+        return value
+    print("[yellow]Warning:[/] Ignoring the script name: expected text.")
+    return None
+
+
 def _resolve_image(image: object, base_dir: Path | None, role_id: str) -> str | None:
     """Work out the icon location for a role.
 
@@ -110,9 +129,14 @@ def _resolve_image(image: object, base_dir: Path | None, role_id: str) -> str | 
         print(f"[yellow]Warning:[/] Cannot use the local image '{escape(image)}' for {escape(role_id)} in a script "
               "from a URL.")
         return None
-    if Path(image).is_absolute():
-        return image
-    return str((base_dir / image).resolve())
+    try:
+        if Path(image).is_absolute():
+            return image
+        return str((base_dir / image).resolve())
+    except ValueError as e:  # Paths the filesystem cannot represent, such as ones holding a NUL byte
+        print(f"[yellow]Warning:[/] Cannot use the local image '{escape(image)}' for {escape(role_id)}: "
+              f"{escape(str(e))}")
+        return None
 
 
 def _string_list(entry: dict, key: str) -> list[str] | None:
@@ -145,10 +169,10 @@ def _role_from_tpi_entry(entry: object, base_dir: Path | None) -> Role | None:
     role = Role(entry["id"])
     if len(entry) == 1:
         return role
-    role.name = entry.get("name")
+    role.name = _text_field(entry, "name")
     team = entry.get("team")
     role.team = "traveler" if team == "traveller" else team
-    role.ability = entry.get("ability")
+    role.ability = _text_field(entry, "ability")
     role.reminders = _tpi_reminders(entry)
     role.first_night = _night_flag(entry.get("firstNight"), entry.get("firstNightReminder"))
     role.other_nights = _night_flag(entry.get("otherNight"), entry.get("otherNightReminder"))
@@ -170,7 +194,7 @@ def parse_tpi(data: list, base_dir: Path | None) -> ParsedScript:
     roles = []
     for entry in data:
         if isinstance(entry, dict) and entry.get("id") == "_meta":
-            name = entry.get("name")
+            name = _script_name(entry.get("name"))
             continue
         role = _role_from_tpi_entry(entry, base_dir)
         if role is not None:
@@ -210,9 +234,9 @@ def _role_from_bloodstar_entry(
     team = entry.get("team")
     return Role(
         id=entry["id"],
-        name=entry.get("name"),
+        name=_text_field(entry, "name"),
         team="traveler" if team == "traveller" else team,
-        ability=entry.get("ability"),
+        ability=_text_field(entry, "ability"),
         reminders=_lines(entry.get("characterReminderTokens")) + _lines(entry.get("globalReminderTokens")),
         first_night=normalized in first_order and bool(first_reminder),
         other_nights=normalized in other_order and bool(other_reminder),
@@ -227,7 +251,7 @@ def parse_bloodstar(data: dict, base_dir: Path | None) -> ParsedScript:
     if not isinstance(characters, list):
         raise ScriptError("The Bloodstar 'characterList' must be a list.")
     meta = data.get("meta")
-    name = meta.get("name") if isinstance(meta, dict) else None
+    name = _script_name(meta.get("name")) if isinstance(meta, dict) else None
     first_order = _night_order(data.get("firstNightOrder"))
     other_order = _night_order(data.get("otherNightOrder"))
     roles = []

@@ -90,7 +90,7 @@ def convert_role(role_json: Path, icons_dir: Path, night_counters: dict[str, int
     try:
         data = json.loads(role_json.read_text(encoding="utf-8"))
         role_id = normalize_id(data["id"])
-    except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as e:
         print(f"[yellow]Warning:[/] Skipping {escape(str(role_json))}: {escape(str(e))}")
         return None
     role = {
@@ -142,9 +142,13 @@ def run():
         print(f"[red]Error:[/] No role JSON files found in {escape(str(input_dir))}.")
         return 1
 
-    for name, files in scripts:
-        counters: dict[str, int] = {}
-        roles = [r for r in (convert_role(f, output_dir / "icons", counters) for f in files) if r is not None]
-        path = write_script(name, roles, output_dir)
-        print(f"[green]Wrote {escape(str(path))} ({len(roles)} roles).[/]")
+    try:
+        for name, files in scripts:
+            counters: dict[str, int] = {}
+            roles = [r for r in (convert_role(f, output_dir / "icons", counters) for f in files) if r is not None]
+            path = write_script(name, roles, output_dir)
+            print(f"[green]Wrote {escape(str(path))} ({len(roles)} roles).[/]")
+    except OSError as e:
+        print(f"[red]Error:[/] Unable to write to {escape(str(output_dir))}: {escape(str(e))}")
+        return 1
     return 0

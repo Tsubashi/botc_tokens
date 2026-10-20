@@ -210,3 +210,47 @@ def test_script_slug():
     assert script_slug(ParsedScript("My Script!", []), ScriptSource([], None, "x")) == "My_Script"
     assert script_slug(ParsedScript(None, []), ScriptSource([], None, "script")) == "script"
     assert script_slug(ParsedScript(None, []), ScriptSource([], None, "")) == "script"
+
+
+def test_load_deeply_nested_json_is_a_script_error(tmp_path):
+    """JSON nested too deeply to decode is reported, not a RecursionError."""
+    deep = tmp_path / "deep.json"
+    deep.write_text("[" * 100000 + "]" * 100000)
+    with pytest.raises(ScriptError, match="nested too deeply"):
+        load_script_source(str(deep))
+
+
+@pytest.mark.parametrize("field", ["name", "ability"])
+@pytest.mark.parametrize("value", [5, ["x"], {"a": 1}, True])
+def test_parse_tpi_non_string_text_fields_are_dropped(capsys, field, value):
+    """A name or ability that is not a string is warned about and treated as unspecified."""
+    entry = {"id": "x", "name": "X", "team": "minion", "ability": "Does.", field: value}
+    role = parse_tpi([entry], None).roles[0]
+    assert getattr(role, field) is None
+    assert f"Ignoring '{field}' for x" in capsys.readouterr().out.replace("\n", "")
+
+
+@pytest.mark.parametrize("value", [5, ["x"], {"a": 1}])
+def test_parse_tpi_non_string_meta_name_is_ignored(capsys, value):
+    """A _meta name that is not a string is warned about and the script is left unnamed."""
+    parsed = parse_tpi([{"id": "_meta", "name": value}, {"id": "x"}], None)
+    assert parsed.name is None
+    assert "Ignoring the script name" in capsys.readouterr().out.replace("\n", "")
+
+
+@pytest.mark.parametrize("field", ["name", "ability"])
+def test_parse_bloodstar_non_string_text_fields_are_dropped(capsys, field):
+    """Bloodstar characters with non-string text fields are handled like TPI entries."""
+    parsed = parse_bloodstar({"characterList": [{"id": "x", field: 7}], "meta": {"name": 9}}, None)
+    assert getattr(parsed.roles[0], field) is None
+    assert parsed.name is None
+    out = capsys.readouterr().out.replace("\n", "")
+    assert f"Ignoring '{field}' for x" in out
+    assert "Ignoring the script name" in out
+
+
+def test_parse_tpi_image_path_with_nul_is_dropped(tmp_path, capsys):
+    """A local image path that the filesystem cannot represent is warned about and treated as missing."""
+    entry = {"id": "x", "name": "X", "team": "minion", "ability": "", "image": "icon\x00.png"}
+    assert parse_tpi([entry], tmp_path).roles[0].icon is None
+    assert "Cannot use the local image" in capsys.readouterr().out.replace("\n", "")

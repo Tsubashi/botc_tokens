@@ -34,6 +34,7 @@ DEFAULT_REMINDER_DIAMETER_MM = 26.0
 DEFAULT_MARGIN_MM = 6.27
 DEFAULT_PADDING_MM = 0.0
 DEFAULT_PAPER_TYPE = "letter"
+MAX_OPTION_VALUE = 1_000_000
 
 
 def _checked_number(text: str, convert, allow_zero: bool):
@@ -44,6 +45,8 @@ def _checked_number(text: str, convert, allow_zero: bool):
         raise argparse.ArgumentTypeError(f"'{text}' is not a number") from None
     if not math.isfinite(number) or number < 0 or (number == 0 and not allow_zero):
         raise argparse.ArgumentTypeError(f"'{text}' must be {'zero or more' if allow_zero else 'greater than zero'}")
+    if number > MAX_OPTION_VALUE:
+        raise argparse.ArgumentTypeError(f"'{text}' must be at most {MAX_OPTION_VALUE}")
     return number
 
 
@@ -357,5 +360,8 @@ def run() -> int:
         intermediate = TemporaryDirectory() if args.intermediate_dir is None else nullcontext(args.intermediate_dir)
         with intermediate as intermediate_dir:
             return _create(args, layout, duplicates, lookup, components, Path(intermediate_dir))
+    except (OSError, WandException) as e:  # Unwritable output dirs, or components (such as fonts) that fail to render
+        print(f"[red]Error:[/] {escape(str(e))}")
+        return 1
     finally:
         components.close()

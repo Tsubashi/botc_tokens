@@ -12,6 +12,9 @@ from .printable import Printable
 from .role import Role
 
 
+MAX_PAGE_PIXELS = 150_000_000  # Letter at 1200 DPI is about 135 megapixels; anything beyond that is a mistake
+
+
 class LayoutError(ValueError):
     """The sheet layout cannot hold any tokens."""
 
@@ -37,7 +40,14 @@ class SheetLayout:
             raise LayoutError("The horizontal margin is too large for the page width.")
         if printable_height <= 0:
             raise LayoutError("The vertical margin is too large for the page height.")
+        if self.page_width * self.page_height > MAX_PAGE_PIXELS:
+            raise LayoutError(
+                f"The page ({self.page_width}x{self.page_height}px) is too large to render; "
+                "reduce the DPI or the paper size."
+            )
         for label, diameter in (("role", self.role_diameter), ("reminder", self.reminder_diameter)):
+            if diameter < 1:
+                raise LayoutError(f"The {label} token diameter rounds to zero pixels; increase it or the DPI.")
             if diameter > printable_width or diameter > printable_height:
                 raise LayoutError(f"The {label} token diameter ({diameter}px) does not fit in the printable area.")
 

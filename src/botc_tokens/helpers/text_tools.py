@@ -6,6 +6,8 @@ from wand.color import Color
 from wand.drawing import Drawing
 from wand.image import Image
 
+MIN_FONT_SIZE = 1
+
 
 def fit_ability_text(text, font_size, first_line_width, step, components):
     """Take an ability text and fit it to a given width.
@@ -32,19 +34,24 @@ def fit_ability_text(text, font_size, first_line_width, step, components):
         # start the line counter above that limit so that we run at least once.
         original_text = text
         has_bracket = (original_text[-1] == "]")
-        lines = [1, 2, 3, 4, 5]
-        while len(lines) > 4:
+        while True:
             text = original_text
             line_text = text
             lines = []
             target_width = first_line_width
             largest_line_width = 0
             max_height = 0
+            word_too_wide = False
             draw.font_size = draw.font_size * 0.9
             while len(text) > 0:
                 # Find the longest line that fits within the target width
                 metrics = draw.get_font_metrics(img, line_text)
                 while metrics.text_width > target_width:
+                    if " " not in line_text.strip():
+                        # A single word is wider than the line. Keep it whole (an empty line cannot be drawn) and
+                        # shrink the font on the next pass so it fits.
+                        word_too_wide = True
+                        break
                     line_text = " ".join(line_text.split(" ")[:-1])
                     # Check for brackets
                     if has_bracket and "[" in line_text:
@@ -64,6 +71,10 @@ def fit_ability_text(text, font_size, first_line_width, step, components):
                 # Remove the line we just added from the text, and set up line_text for the next line
                 text = text[len(line_text):]
                 line_text = text
+            # Try again with a smaller font if the text needs too many lines or holds a word too wide for its line,
+            # unless the font is already as small as it can usefully get.
+            if (len(lines) <= 4 and not word_too_wide) or draw.font_size <= MIN_FONT_SIZE:
+                break
 
         # Actually draw the text
         current_y = 0

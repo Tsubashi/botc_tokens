@@ -7,6 +7,7 @@ import sys
 
 # Third Party
 from rich import print
+from rich.markup import escape
 
 # Application Specific
 from .. import data_dir
@@ -47,12 +48,16 @@ def run():
     output_dir = Path(args.output_dir)
     what = args.what
 
-    if what == "all":
-        _dump_components(output_dir / "components")
-    elif what == "components":
-        _dump_components(output_dir)
-    if what in ("duplicates", "all"):
-        _dump_json("known_duplicates.json", output_dir / "duplicates.json")
-    if what in ("icon-lookup", "all"):
-        _dump_json("icon_lookup.json", output_dir / "icon_lookup.json")
+    try:
+        if what == "all":
+            _dump_components(output_dir / "components")
+        elif what == "components":
+            _dump_components(output_dir)
+        if what in ("duplicates", "all"):
+            _dump_json("known_duplicates.json", output_dir / "duplicates.json")
+        if what in ("icon-lookup", "all"):
+            _dump_json("icon_lookup.json", output_dir / "icon_lookup.json")
+    except OSError as e:
+        print(f"[red]Error:[/] Unable to write to {escape(str(output_dir))}: {escape(str(e))}")
+        return 1
     return 0

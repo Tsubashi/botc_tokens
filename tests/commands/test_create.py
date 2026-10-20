@@ -332,6 +332,10 @@ def test_create_margin_too_large_exits_1(tmp_path, web, solo_script, capsys):
     ["--paper-size", "100", "0"],
     ["--margin-vertical", "-0.1"],
     ["--padding", "inf"],
+    ["--role-diameter", "1e308"],
+    ["--paper-size", "1e308", "100"],
+    ["--margin-horizontal", "1e308"],
+    ["--dpi", "100000000"],
 ])
 def test_create_rejects_bad_numbers(solo_script, capsys, option):
     """Sizes and resolution must be positive, and margins and padding must not be negative."""
@@ -401,3 +405,35 @@ def test_create_sparse_components_note(tmp_path, web, solo_script, component_pac
     assert _run_cmd(["-o", str(tmp_path / "out"), "-c", str(component_package), solo_script]) == 0
 
     assert "Using built-in components for: Leaf1.png" in _output(capsys)
+
+
+def test_create_zero_pixel_tokens_exit_1(tmp_path, web, solo_script, capsys):
+    """Sizes that round to zero pixels at the chosen DPI are fatal."""
+    options = ["--dpi", "1", "--role-diameter", "1", "--reminder-diameter", "1"]
+    assert _run_cmd(["-o", str(tmp_path / "out"), *options, solo_script]) == 1
+    assert "rounds to zero pixels" in _output(capsys)
+
+
+def test_create_huge_page_exits_1(tmp_path, web, solo_script, capsys):
+    """A page that would need an unreasonable number of pixels is fatal before rendering starts."""
+    assert _run_cmd(["-o", str(tmp_path / "out"), "--dpi", "4000", solo_script]) == 1
+    assert "too large" in _output(capsys)
+    assert web.calls == []
+
+
+def test_create_intermediate_dir_is_a_file_exits_1(tmp_path, web, solo_script, capsys):
+    """An intermediate path that cannot be used as a directory is fatal with a message."""
+    not_a_dir = tmp_path / "inter"
+    not_a_dir.write_text("x")
+    assert _run_cmd(["-o", str(tmp_path / "out"), "-m", str(not_a_dir), solo_script]) == 1
+    assert "Error:" in _output(capsys)
+
+
+def test_create_broken_component_font_exits_1(tmp_path, web, solo_script, component_package, capsys):
+    """A component pack whose font cannot be read fails with a message instead of a traceback."""
+    for font in component_package.glob("AbilityText.*"):
+        font.write_text("not a font")
+    assert _run_cmd(["-o", str(tmp_path / "out"), "-c", str(component_package), solo_script]) == 1
+    output = _output(capsys)
+    assert "Error:" in output
+    assert "font" in output

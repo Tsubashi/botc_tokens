@@ -156,3 +156,35 @@ def test_migrated_script_feeds_create(tmp_path, fake_web):
         assert create.run() == 0
 
     assert len(PdfReader(sheets / "roles.pdf").pages) >= 1
+
+
+def test_migrate_output_is_a_file_exits_1(tmp_path, capsys):
+    """An output path that is an existing file is reported, not a traceback."""
+    inputs = tmp_path / "Flat"
+    _write_role(inputs, "one")
+    not_a_dir = tmp_path / "out"
+    not_a_dir.write_text("x")
+    assert _run_cmd(["-i", str(inputs), str(not_a_dir)]) == 1
+    assert "Error:" in capsys.readouterr().out.replace("\n", "")
+
+
+def test_migrate_icon_dir_is_a_file_exits_1(tmp_path, capsys):
+    """Failing to create the icons directory is reported, not a traceback."""
+    inputs = tmp_path / "Flat"
+    _write_role(inputs, "one")
+    _save_image(inputs / "one.png", "png")
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "icons").write_text("x")
+    assert _run_cmd(["-i", str(inputs), str(out)]) == 1
+    assert "Error:" in capsys.readouterr().out.replace("\n", "")
+
+
+def test_migrate_deeply_nested_role_json_is_skipped(tmp_path, capsys):
+    """A role JSON nested too deeply to decode is skipped with a warning."""
+    inputs = tmp_path / "Flat"
+    _write_role(inputs, "one", icon=None)
+    (inputs / "deep.json").write_text("[" * 100000 + "]" * 100000)
+    assert _run_cmd(["-i", str(inputs), str(tmp_path / "out")]) == 0
+    output = capsys.readouterr().out.replace("\n", "")
+    assert "Skipping" in output and "deep.json" in output

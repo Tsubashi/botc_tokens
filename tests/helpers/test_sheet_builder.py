@@ -142,3 +142,18 @@ def test_page_pixel_size(tmp_path, tokens_dir):
     build_sheets([_role("a")], tokens_dir, output, _layout(page_width=256, page_height=512), {})
     with Image(filename=output / "roles.pdf", resolution=(300, 300)) as img:
         assert img.size == (256, 512)
+
+
+def test_layout_validate_rejects_zero_pixel_tokens():
+    """Token diameters that round to zero pixels are impossible layouts."""
+    with pytest.raises(LayoutError, match="role token diameter rounds to zero pixels"):
+        _layout(role_diameter=0).validate()
+    with pytest.raises(LayoutError, match="reminder token diameter rounds to zero pixels"):
+        _layout(reminder_diameter=0).validate()
+
+
+def test_layout_validate_rejects_huge_pages():
+    """Pages beyond the pixel budget are refused before any memory is spent on them."""
+    _layout(page_width=12000, page_height=12000).validate()
+    with pytest.raises(LayoutError, match="too large"):
+        _layout(page_width=13000, page_height=13000).validate()

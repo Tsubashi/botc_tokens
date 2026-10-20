@@ -86,3 +86,21 @@ def test_load_icon_lookup_relative_user_file(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     lookup = load_icon_lookup("icons.json")
     assert lookup["homebrew"] == str((tmp_path / "icons/h.png").resolve())
+
+
+def test_load_duplicates_integral_floats_become_ints(tmp_path):
+    """A count written as 2.0 is accepted by the schema and returned as an int."""
+    user_file = tmp_path / "dups.json"
+    user_file.write_text(json.dumps({"imp": 2.0}))
+    duplicates = load_duplicates(str(user_file))
+    assert duplicates["imp"] == 2
+    assert type(duplicates["imp"]) is int
+
+
+@pytest.mark.parametrize("count", [-1, 101])
+def test_load_duplicates_rejects_out_of_range_counts(tmp_path, count):
+    """Counts must be between 0 and 100."""
+    user_file = tmp_path / "dups.json"
+    user_file.write_text(json.dumps({"imp": count}))
+    with pytest.raises(jsonschema.ValidationError):
+        load_duplicates(str(user_file))

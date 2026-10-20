@@ -128,3 +128,12 @@ def test_decode_data_uri_rejects_non_base64(uri):
     """Data URIs without a base64 payload are rejected."""
     with pytest.raises(ValueError):
         decode_data_uri(uri)
+
+
+@pytest.mark.parametrize("url", ["http://[::1", "https://example.com/é.json", "https://example.com/x?q=é"])
+def test_fetch_rejects_urls_the_client_cannot_send(url):
+    """A URL that urllib cannot parse or encode is a FetchError, raised without retrying."""
+    with patch("botc_tokens.helpers.web.sleep") as mock_sleep:
+        with pytest.raises(FetchError, match="Unable to fetch"):
+            fetch(url)
+    mock_sleep.assert_not_called()

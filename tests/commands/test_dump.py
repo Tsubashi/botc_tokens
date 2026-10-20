@@ -67,3 +67,12 @@ def test_dump_bad_choice(tmp_path):
         _run_cmd(["bogus", str(tmp_path)])
 
     assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("what", ["all", "duplicates", "icon-lookup", "components"])
+def test_dump_output_is_a_file_exits_1(tmp_path, capsys, what):
+    """An output path that is an existing file is reported, not a traceback."""
+    not_a_dir = tmp_path / "out"
+    not_a_dir.write_text("x")
+    assert _run_cmd([what, str(not_a_dir / "sub")]) == 1
+    assert "Error:" in capsys.readouterr().out
