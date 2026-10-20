@@ -55,3 +55,16 @@ def test_large_font():
         text, "role", 100, TokenComponents(), use_large_fonts=True
     )
     assert img.size == (68, 37)
+
+
+def test_wide_word_shrinks_font_instead_of_failing():
+    """A single word wider than the first line is fitted by shrinking the font, not dropped as an empty line."""
+    text = "Each night, the " + "W" * 20 + " player wakes."
+    img = text_tools.fit_ability_text(text, 58, 554, 106, TokenComponents())
+    assert img.width > 1 and img.height > 1
+
+
+def test_zero_font_size_still_renders():
+    """A font size that rounds to zero (tiny components) still produces an image instead of failing."""
+    img = text_tools.fit_ability_text("Does a thing.", 0, 1, 1, TokenComponents())
+    assert img.width >= 1 and img.height >= 1

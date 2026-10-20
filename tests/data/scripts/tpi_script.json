@@ -1,0 +1,16 @@
+[
+  {"id": "_meta", "name": "Test Script", "author": "t"},
+  "washerwoman",
+  {"id": "imp"},
+  {
+    "id": "homebrew_one", "name": "Homebrew One", "team": "townsfolk", "ability": "Does a thing. [+1 Outsider]",
+    "reminders": ["ONE"], "remindersGlobal": ["IS ONE"], "firstNight": 3, "otherNight": 0,
+    "image": "icons/one.png"
+  },
+  {
+    "id": "homebrew_two", "name": "Homebrew Two", "team": "traveller", "ability": "Travels.",
+    "firstNightReminder": "Wake them",
+    "image": ["https://example.test/two.png", "https://example.test/two_evil.png"], "setup": false
+  },
+  {"id": "drunk", "team": "outsider"}
+]

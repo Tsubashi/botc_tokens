@@ -5,6 +5,7 @@ exclude =
     .git,
     .venv,
     .claude,
+    .fuzz,
     __pycache__,
     docs/source/conf.py,
     build,

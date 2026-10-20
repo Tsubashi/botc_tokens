@@ -1,0 +1,157 @@
+# Build standalone botc_tokens binaries with Nuitka, bundling conda-forge ImageMagick so they run on a clean machine.
+# Runs on pushes to dev (artifacts only) and on published releases (artifacts attached to the release).
+
+name: Build binaries
+
+on:
+  push:
+    branches: [ "dev" ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.os }}-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-22.04,   os: linux,   arch: x86_64 }
+          - { runner: macos-latest,   os: macos,   arch: arm64 }
+          - { runner: macos-15-intel, os: macos,   arch: x86_64 }
+          - { runner: windows-latest, os: windows, arch: x86_64 }
+    runs-on: ${{ matrix.runner }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+      NUITKA_CACHE_DIR: ${{ github.workspace }}/.nuitka-cache
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # setuptools-scm derives the version from tags
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ImageMagick from conda-forge (non-AGPL variant)
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: imagemagick
+          create-args: >-
+            imagemagick=7.1.2_31=imagemagick_*
+          # No environment cache: a restored env has no pkgs/ directory, and the license texts are collected from there.
+          cache-environment: false
+
+      - name: Confirm the non-AGPL ImageMagick variant was resolved
+        run: |
+          micromamba list -n imagemagick imagemagick
+          ! micromamba list -n imagemagick imagemagick | grep -i agpl
+
+      - name: Cache Nuitka's compiler downloads and ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUITKA_CACHE_DIR }}
+          key: nuitka-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: nuitka-${{ matrix.os }}-${{ matrix.arch }}-
+
+      - name: Install the package and build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[build]"
+
+      - name: Build the binary and bundle ImageMagick
+        run: python scripts/build_binary.py --conda-prefix "$MAMBA_ROOT_PREFIX/envs/imagemagick" --output-dir build/nuitka
+
+      - name: Confirm the bundle ships license texts and no Ghostscript
+        run: |
+          ls build/nuitka/botc_tokens.dist/THIRD_PARTY_LICENSES/imagemagick-*/
+          # Same patterns as prune_ghostscript; a bare libgs* would also match Kerberos (libgssapi_krb5, libgssrpc).
+          ! find build/nuitka/botc_tokens.dist/imagemagick -iname 'libgs.*' -o -iname 'libgs-*' -o -iname 'gsdll*' | grep .
+
+      - name: Remove the runner's own ImageMagick so the smoke tests cannot use it
+        if: matrix.os != 'windows'
+        run: |
+          case "${{ matrix.os }}" in
+            linux)   sudo apt-get remove -y --purge 'libmagick*' imagemagick imagemagick-6-common || true ;;
+            macos)   brew uninstall --ignore-dependencies --force imagemagick || true
+                     if brew list imagemagick >/dev/null 2>&1; then echo "imagemagick still installed"; exit 1; fi ;;
+          esac
+
+      - name: Remove the runner's own ImageMagick so the smoke tests cannot use it (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          # wand reads this registry key before MAGICK_HOME, so it must be gone for the smoke test to mean anything.
+          Remove-Item -Path "HKLM:\SOFTWARE\ImageMagick" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "C:\Program Files\ImageMagick*" -Recurse -Force -ErrorAction SilentlyContinue
+          if (Test-Path "HKLM:\SOFTWARE\ImageMagick") { throw "ImageMagick registry key still present" }
+
+      - name: Smoke test (offline, bundled icons)
+        run: |
+          BIN=build/nuitka/botc_tokens.dist/botc_tokens
+          [ "${{ matrix.os }}" = windows ] && BIN="$BIN.exe"
+          env -u MAGICK_HOME "$BIN" version
+          env -u MAGICK_HOME "$BIN" create tests/data/scripts/bloodstar_save.json -o smoke-offline
+          test -s smoke-offline/roles.pdf
+          test -s smoke-offline/reminders.pdf
+
+      - name: Smoke test (the bundled ImageMagick is what loads, also through a symlink on PATH)
+        if: matrix.os != 'windows'
+        run: |
+          BIN="$PWD/build/nuitka/botc_tokens.dist/botc_tokens"
+          mkdir -p "$RUNNER_TEMP/linkbin" && ln -sf "$BIN" "$RUNNER_TEMP/linkbin/botc_tokens"
+          cd "$RUNNER_TEMP"
+          if [ "${{ matrix.os }}" = macos ]; then
+            env -u MAGICK_HOME DYLD_PRINT_LIBRARIES=1 linkbin/botc_tokens version 2>&1 | grep -F "botc_tokens.dist/imagemagick/lib/libMagickWand"
+          else
+            env -u MAGICK_HOME LD_DEBUG=libs linkbin/botc_tokens version 2>&1 | grep -F "botc_tokens.dist/imagemagick/lib/libMagickWand"
+          fi
+          env -u MAGICK_HOME linkbin/botc_tokens create "$GITHUB_WORKSPACE/tests/data/scripts/bloodstar_save.json" -o smoke-symlink
+          test -s smoke-symlink/roles.pdf
+
+      - name: Smoke test (offline, inside a bare Ubuntu container)
+        if: matrix.os == 'linux'
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work ubuntu:22.04 bash -c '
+            build/nuitka/botc_tokens.dist/botc_tokens version &&
+            build/nuitka/botc_tokens.dist/botc_tokens create tests/data/scripts/bloodstar_save.json -o smoke-container &&
+            test -s smoke-container/roles.pdf'
+
+      - name: Smoke test (online, official roles over HTTPS)
+        run: |
+          BIN=build/nuitka/botc_tokens.dist/botc_tokens
+          [ "${{ matrix.os }}" = windows ] && BIN="$BIN.exe"
+          env -u MAGICK_HOME "$BIN" create tests/data/scripts/tpi_script.json -o smoke-online
+          test -s smoke-online/roles.pdf
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: botc_tokens-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            build/nuitka/botc_tokens-*.tar.gz
+            build/nuitka/botc_tokens-*.zip
+          if-no-files-found: error
+
+  release:
+    name: Attach binaries to the release
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*

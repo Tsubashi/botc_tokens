@@ -1,5 +1,7 @@
 """Various helper utilities for testing."""
 from contextlib import contextmanager
+import io
+from urllib.error import HTTPError
 
 import pytest
 
@@ -41,151 +43,21 @@ def expect_exit(expected_code=1):
     assert e.value.code == expected_code
 
 
-@contextmanager
-def expect_exit_with_output(capsys, expected_text, expected_code=1):
-    """Ensure a function exits, and writes an expected string to stdout or stderr."""
-    with expect_exit(expected_code):
-        yield
-    output = capsys.readouterr()
-    assert (expected_text in output.out) or (expected_text in output.err)
+class FakeWeb:
+    """A fake network layer that serves canned responses for urlopen."""
 
+    def __init__(self):
+        """Create an empty set of routes."""
+        self.routes: dict[str, bytes | Exception] = {}
+        self.calls: list[str] = []
 
-webmock_list = [
-    # The first call is for the role data
-    b"""[
-         {
-            "id": "first",
-            "name": "First",
-            "team": "townsfolk",
-            "print": "unused",
-            "icon": "unused",
-            "edition": "54 - Unreal Experimental",
-            "isDisabled": false
-          },
-          {
-            "id": "second",
-            "name": "Second",
-            "team": "demon",
-            "print": "unused",
-            "icon": "unused",
-            "edition": "54 - Unreal Experimental",
-            "isDisabled": false
-          },
-          {
-            "id": "third",
-            "name": "Third",
-            "team": "outsider",
-            "print": "unused",
-            "icon": "unused",
-            "edition": "99 - Ignored",
-            "isDisabled": false
-          }
-        ]""",
-    # The second call is for the night data
-    b"""{
-          "firstNight": [
-            "DUSK",
-            "first"
-          ],
-          "otherNight": [
-            "DUSK",
-            "first",
-            "second"
-          ]
-        }""",
-    # The third call is for the first role's wiki page
-    b"""<html>
-          <body>
-            <div><h2 id="Summary">First ability</h2></div>
-            <p>First ability description</p>
-            <div><h2 id="How_to_Run">How To Run</h2></div>
-            <p><b>not a reminder</b></p>
-            <div id="character-details"><img src="First.png" /></div>
-          </body>
-        </html>""",
-    # The fourth call is for the second role's wiki page
-    b"""<html>
-          <body>
-            <div><h2 id="Summary">Second ability</h2></div>
-            <p>Second ability description [Affects Setup]</p>
-            <div><h2 id="How_to_Run">How To Run</h2></div>
-            <p><b>YOU ARE</b></p>
-            <p><b>SECOND REMINDER</b></p>
-            <div id="character-details"><img src="Second.png" /></div>
-          </body>
-        </html>""",
-    # The fifth call is for the third role's wiki page, which we will show as blank
-    b"""<html>
-          <body>
-          </body>
-        </html>""",
-    b"""[
-        {
-            "id": "_meta",
-            "name": "54 - Unreal Experimental"
-        },
-        {
-            "id": "first",
-            "image": "https://www.bloodstar.xyz/first.png",
-            "name": "First",
-            "team": "townsfolk",
-            "firstNightReminder": "first night wakes",
-            "otherNightReminder": "other nights wakes"
-        },
-        {
-            "id": "second",
-            "image": "https://www.bloodstar.xyz/second.png",
-            "name": "Second",
-            "team": "demon",
-            "otherNightReminder": "reminder text"
-        },
-        {
-            "id": "third",
-            "name": "Third",
-            "roleType": "outsider",
-            "print": "unused",
-            "icon": "unused",
-            "version": "99 - Ignored",
-            "isDisabled": false
-        }
-    ]""",
-]
-
-expected_role_json = {
-    "first.json": {
-        'id': 'first',
-        'ability': 'First ability description',
-        'affects_setup': False,
-        'first_night': True,
-        'home_script': '54 - Unreal Experimental',
-        'icon': 'first.png',
-        'name': 'First',
-        'other_nights': True,
-        'reminders': [],
-        'type': 'townsfolk'
-    },
-    "second.json": {
-        'id': 'second',
-        'ability': 'Second ability description [Affects Setup]',
-        'affects_setup': True,
-        'first_night': False,
-        'home_script': '54 - Unreal Experimental',
-        'icon': 'second.png',
-        'name': 'Second',
-        'other_nights': True,
-        'reminders': ["SECOND REMINDER"],
-        'type': 'demon'
-    },
-    "third.json": {
-        "id": "third",
-        "name": "Third",
-        "ability": "",
-        "type": "outsider",
-        "icon": None,
-        "first_night": False,
-        "other_nights": False,
-        "reminders": [],
-        "affects_setup": True,
-        "home_script": "99 - Ignored"
-    }
-}
+    def urlopen(self, request, *args, **kwargs):
+        """Stand in for urllib.request.urlopen, serving from the configured routes."""
+        url = request.full_url
+        self.calls.append(url)
+        result = self.routes.get(url)
+        if isinstance(result, Exception):
+            raise result
+        if result is None:
+            raise HTTPError(url, 404, "Not Found", {}, None)
+        return io.BytesIO(result)

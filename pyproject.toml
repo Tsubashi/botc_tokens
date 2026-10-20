@@ -4,20 +4,22 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "botc_tokens"
-description = "A collection of command line utilities for creating, updating, and grouping tokens for Blood on the Clocktower."
+description = "Create print-n-play tokens for Blood on the Clocktower scripts."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dynamic = ["version"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "beautifulsoup4 ~= 4.12.0",
-    "html5lib ~= 1.1.0",
+    "certifi",
     "jsonschema ~= 4.21.1",
     "rich ~= 12.6.0",
     "wand ~= 0.6.13"
@@ -35,6 +37,11 @@ test = [
     "pytest-cov",
     "pypdf"
     ]
+build = [
+    "nuitka ~= 4.3",
+    "ordered-set",
+    "zstandard"
+    ]
 
 [project.scripts]
 botc_tokens = "botc_tokens:__main__.main"
@@ -47,7 +54,7 @@ version = {attr = "botc_tokens.__version__.__version__"}
 
 [tool.pytest.ini_options]
 # addopts = "--cov --cov-branch --cov-report html --cov-report term-missing --cov-fail-under 100"
-pythonpath = ["src"]
+pythonpath = ["src", "scripts"]
 
 [tool.coverage.run]
 source = ["src"]

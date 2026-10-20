@@ -1,11 +1,11 @@
-"""Main Script for m4b-util."""
+"""Command line entry point for botc_tokens."""
 import argparse
 import sys
 
 from rich import print
 
 from .__version__ import version
-from .commands import create, dump_components, group, trim_icons, update
+from .commands import create, dump, migrate, pad_icons
 
 
 def _print_version():
@@ -16,11 +16,13 @@ def _print_version():
 
 # Set up the dictionary of commands. The values are tuples, first the function to run, second the description.
 allowed_commands = {
-    "create": (create.run, "Create token images to match json files in a directory tree."),
-    "dump-components": (dump_components.run, "Write all the default components to the specified directory."),
-    "group": (group.run, "Create printable sheets of roles and reminder from a json script file."),
-    "trim-icons": (trim_icons.run, "Find all icons in a folder and trim away extra space."),
-    "update": (update.run, "Download roles from the wiki, with associated icon and description."),
+    "create": (create.run, "Create print-n-play sheets from a script JSON."),
+    "dump": (dump.run, "Write the built-in defaults (components, duplicates, icon lookup) to a directory."),
+    "migrate": (migrate.run, "Convert old directory structures to the new format."),
+    "pad-icons": (
+        pad_icons.run,
+        "Find all icons in a folder and add extra space to match what the official icons do (if needed).",
+    ),
     "version": (_print_version, "Print version and exit."),
 }
 
@@ -52,14 +54,16 @@ def main():
 
     if args.command not in allowed_commands:
         print("[bold red]Error:[/] Unrecognized command")
-        print(parser.print_help())
-        exit(-1)
+        parser.print_help()
+        sys.exit(-1)
 
     # Invoke the subcommand
     retcode = allowed_commands[args.command][0]()
 
-    print("[bold green]Done![/]")
-    exit(retcode)
+    retcode = retcode or 0
+    if retcode == 0:
+        print("[bold green]Done![/]")
+    sys.exit(retcode)
 
 
 # We don't test coverage for this, since we don't test it directly.

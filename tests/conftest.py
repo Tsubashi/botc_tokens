@@ -12,6 +12,16 @@ from botc_tokens.helpers.token_components import TokenComponents
 pytest.register_assert_rewrite("testhelpers")
 
 
+@pytest.fixture(autouse=True)
+def wide_console(monkeypatch):
+    """Keep rich from word-wrapping captured output at the 80-column non-TTY default.
+
+    Where the wrap lands depends on the length of tmp_path, which differs between CI and
+    local machines, so substring assertions on multi-word messages would otherwise be flaky.
+    """
+    monkeypatch.setenv("COLUMNS", "500")
+
+
 @pytest.fixture()
 def test_data_dir():
     """Set the data directory for the tests."""
@@ -28,3 +38,14 @@ def component_package(tmp_path):
     dump_path = tmp_path / "dump"
     token_components.dump(dump_path)
     return dump_path
+
+
+@pytest.fixture()
+def fake_web(monkeypatch):
+    """Replace network access in the web helper with a FakeWeb."""
+    from testhelpers import FakeWeb  # Imported late so assert rewriting applies
+
+    web = FakeWeb()
+    monkeypatch.setattr("botc_tokens.helpers.web.urlopen", web.urlopen)
+    monkeypatch.setattr("botc_tokens.helpers.web.sleep", lambda seconds: None)
+    return web

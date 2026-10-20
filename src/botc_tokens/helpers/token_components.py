@@ -44,6 +44,8 @@ class TokenComponents:
             component_package = default_component_path
 
         self.comp_path = Path(component_package)
+        if not self.comp_path.exists():
+            raise FileNotFoundError(f"Component package not found: {self.comp_path}")
 
         # Create a temporary directory in case we need to unzip a package
         self.temp_dir = TemporaryDirectory(suffix=f"-{self.comp_path.name}")
@@ -57,13 +59,19 @@ class TokenComponents:
 
         self._load_components()
 
-    def _verify_package(self):
-        """Ensure that we have all the component pieces that we need."""
-        for file in self.required_files:
-            try:
-                next(self.comp_path.glob(file))
-            except StopIteration:
-                raise FileNotFoundError(f"Missing required file: {file}")
+    def _resolve(self, pattern: str) -> Path:
+        """Find a component in the user package, falling back to the built-in one.
+
+        Args:
+            pattern (str): The required-file glob pattern to look for.
+
+        Returns:
+            Path: The matching file in the user package, else the built-in file.
+        """
+        try:
+            return next(self.comp_path.glob(pattern))
+        except StopIteration:
+            return next(Path(default_component_path).glob(pattern))
 
     def _unzip_package(self):
         """Unzip the component package, only pulling the pieces we need."""
@@ -73,40 +81,32 @@ class TokenComponents:
             for file in self.required_files:
                 # Search through all directories and find the first match. This allows us to accept zip packages
                 # created through various means, and ignore any directory structure. Remove any wildcards from the
-                # required file name.
+                # required file name. Absent components are skipped; they fall back to the built-in ones.
                 try:
                     file_in_zip = next(f for f in file_list if file.replace("*", "") in f)
                 except StopIteration:
-                    raise FileNotFoundError(f"Zip package is missing: {file}")
+                    continue
                 source = zip_ref.open(file_in_zip)
-                target = open(Path(self.temp_dir.name) / file, "wb")
+                target = open(Path(self.temp_dir.name) / Path(file_in_zip).name, "wb")
                 with source, target:
                     copyfileobj(source, target)
 
     def _load_components(self):
         """Load the token components."""
-        # Make sure we have everything before we move forward.
-        self._verify_package()
+        # Record which components the package lacks (in required_files order); those use the built-in ones.
+        self.fallbacks: list[str] = [f for f in self.required_files if next(self.comp_path.glob(f), None) is None]
 
-        self.role_bg = Image(filename=self.comp_path / "TokenBG.png")
-        self.reminder_bg = Image(filename=self.comp_path / "ReminderBG.png")
-        self.leaves = [
-            Image(filename=self.comp_path / "Leaf1.png"),
-            Image(filename=self.comp_path / "Leaf2.png"),
-            Image(filename=self.comp_path / "Leaf3.png"),
-            Image(filename=self.comp_path / "Leaf4.png"),
-            Image(filename=self.comp_path / "Leaf5.png"),
-            Image(filename=self.comp_path / "Leaf6.png"),
-            Image(filename=self.comp_path / "Leaf7.png"),
-        ]
-        self.left_leaf = Image(filename=self.comp_path / "LeafLeft.png")
-        self.right_leaf = Image(filename=self.comp_path / "LeafRight.png")
-        self.setup_flower = Image(filename=self.comp_path / "SetupFlower.png")
+        self.role_bg = Image(filename=self._resolve("TokenBG.png"))
+        self.reminder_bg = Image(filename=self._resolve("ReminderBG.png"))
+        self.leaves = [Image(filename=self._resolve(f"Leaf{i}.png")) for i in range(1, 8)]
+        self.left_leaf = Image(filename=self._resolve("LeafLeft.png"))
+        self.right_leaf = Image(filename=self._resolve("LeafRight.png"))
+        self.setup_flower = Image(filename=self._resolve("SetupFlower.png"))
 
-        self.AbilityTextFont = next(self.comp_path.glob("AbilityText.*"))
-        self.AbilityTextBoldFont = next(self.comp_path.glob("AbilityTextBold.*"))
-        self.ReminderTextFont = next(self.comp_path.glob("ReminderText.*"))
-        self.RoleNameFont = next(self.comp_path.glob("RoleName.*"))
+        self.AbilityTextFont = self._resolve("AbilityText.*")
+        self.AbilityTextBoldFont = self._resolve("AbilityTextBold.*")
+        self.ReminderTextFont = self._resolve("ReminderText.*")
+        self.RoleNameFont = self._resolve("RoleName.*")
 
     def get_reminder_bg(self):
         """Get the reminder background image."""
@@ -121,13 +121,8 @@ class TokenComponents:
         target_dir = Path(target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
         for file in self.required_files:
-            try:
-                source = next(self.comp_path.glob(file))
-            except StopIteration:
-                raise FileNotFoundError(f"Unable to find '{file}' despite it being loaded. Perhaps the components "
-                                        "package was modified after loading?")
-            target = target_dir / source.name
-            copy(source, target)
+            source = self._resolve(file)
+            copy(source, target_dir / source.name)
 
     def close(self):
         """Close the token components."""

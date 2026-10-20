@@ -1,0 +1,92 @@
+[
+  {
+    "id": "washerwoman",
+    "name": "Washerwoman",
+    "edition": "tb",
+    "team": "townsfolk",
+    "firstNightReminder": "Show the Townsfolk character token. Point to both the *TOWNSFOLK* and *WRONG* players.",
+    "reminders": [
+      "Townsfolk",
+      "Wrong"
+    ],
+    "setup": false,
+    "ability": "You start knowing that 1 of 2 players is a particular Townsfolk.",
+    "flavor": "Bloodstains on a dinner jacket? No, this is cooking sherry. How careless."
+  },
+  {
+    "id": "drunk",
+    "name": "Drunk",
+    "edition": "tb",
+    "team": "outsider",
+    "reminders": [],
+    "remindersGlobal": [
+      "Is The Drunk"
+    ],
+    "setup": true,
+    "ability": "You do not know you are the Drunk. You think you are a Townsfolk character, but you are not.",
+    "special": [
+      {
+        "type": "selection",
+        "name": "bag-disabled"
+      },
+      {
+        "type": "reveal",
+        "name": "replace-character"
+      }
+    ],
+    "flavor": "I\u2019m only a *hic* social drinker, my dear. Admittedly, I am a heavy *burp* socializer."
+  },
+  {
+    "id": "imp",
+    "name": "Imp",
+    "edition": "tb",
+    "team": "demon",
+    "otherNightReminder": "The Imp chooses a player. :reminder: If the Imp chose themselves: Replace 1 alive Minion token with a spare Imp token. Put the old Imp to sleep. Wake the new Imp. Show the *YOU ARE* token, then show the Imp token.",
+    "reminders": [
+      "Dead"
+    ],
+    "setup": false,
+    "ability": "Each night*, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp.",
+    "flavor": "We must keep our wits sharp and our sword sharper. Evil walks among us, and will stop at nothing to destroy us good, simple folk, bringing our fine town to ruin. Trust no-one. But, if you must trust someone, trust me."
+  },
+  {
+    "id": "legion",
+    "name": "Legion",
+    "edition": "carousel",
+    "team": "demon",
+    "otherNightReminder": "A player might die. :reminder:",
+    "reminders": [
+      "Dead",
+      "About To Die"
+    ],
+    "setup": true,
+    "ability": "Each night*, a player might die. Executions fail if only evil voted. You register as a Minion too. [Most players are Legion]",
+    "special": [
+      {
+        "type": "selection",
+        "name": "bag-duplicate"
+      }
+    ],
+    "flavor": "We are the chill wind on a winter\u2019s day. We are the shadow in the moonless night. We are the poison in your tea and the whisper in your ear. We are everywhere."
+  },
+  {
+    "id": "beggar",
+    "name": "Beggar",
+    "edition": "tb",
+    "team": "traveller",
+    "reminders": [],
+    "setup": false,
+    "ability": "You must use a vote token to vote. If a dead player gives you theirs, you learn their alignment. You are sober & healthy.",
+    "flavor": "Alms for the poor, good Sir? Spare a coin, Madam? Thank you. God bless! You're a right kind soul and no mistake! I'll have some swanky nosh tonight, I will!"
+  },
+  {
+    "id": "djinn",
+    "reminders": [],
+    "setup": false,
+    "name": "Djinn",
+    "team": "fabled",
+    "edition": "fabled",
+    "ability": "Use the Djinn's special rule. All players know what it is.",
+    "flavor": "\u0646\u062d\u0646 \u0644\u0633\u0646\u0627 \u0647\u0646\u0627. \u0627\u0646\u062a \u0644\u0633\u062a \u062d\u0642\u064a\u0642\u064a. \u0643\u0644 \u0634\u064a\u0621 \u0647\u0648 \u0648\u0647\u0645. \u0623\u0633\u0626\u0644\u062a\u0643 \u0647\u064a \u062c\u0628\u0644 \u0646\u0627\u0631 \u0641\u064a \u064a\u0648\u0645 \u0635\u0627\u0641\u064d."
+  }
+]

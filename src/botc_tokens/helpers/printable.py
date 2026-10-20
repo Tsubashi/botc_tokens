@@ -21,7 +21,8 @@ class Printable:
             margin_vertical=74,
             padding=0,
             diameter=None,
-            close_packing=True
+            close_packing=True,
+            dpi=300
     ):
         """Create a new printable object.
 
@@ -37,6 +38,7 @@ class Printable:
                 dimension will be used.
             close_packing (bool): Whether to use close packing of circles. If True, the tokens will be arranged in a
                 hexagonal pattern. If False, the tokens will be arranged in a grid.
+            dpi (int): The resolution of the written document.
         """
         # 8.5"x11" at 300dpi is 2550 x 3300px
         # Subtracting 74px from each side to account for printer margins leaves our default of 2402 x 3152px
@@ -44,7 +46,7 @@ class Printable:
         self.page_height = page_height - (margin_vertical * 2)
         self.page = None
         self.document = Image()
-        self.document.resolution = (300, 300)
+        self.document.resolution = (dpi, dpi)
         self.current_x = 0
         self.current_y = 0
         self.next_row_should_be_inset = False
