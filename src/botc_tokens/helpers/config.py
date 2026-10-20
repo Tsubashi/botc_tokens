@@ -50,18 +50,22 @@ def find_local_config(start: Path) -> Path | None:
     """Return the nearest config file in `start` or any of its parents, or None if there is none."""
     for directory in (start, *start.parents):
         candidate = directory / CONFIG_FILENAME
-        if candidate.is_file():
+        if candidate.exists():
             return candidate
     return None
 
 
 def config_file_paths() -> list[Path]:
-    """Return the existing config files to load, global first then local, listing a shared file once."""
+    """Return the existing config files to load, global first then local, listing a shared file once.
+
+    Anything that exists under the config name is returned, so a directory with that name is reported as an error
+    when read rather than silently skipped for a file higher up the tree.
+    """
     paths = []
     seen = set()
     local = find_local_config(local_start_dir())
     for candidate in (global_config_path(), local):
-        if candidate is None or not candidate.is_file():
+        if candidate is None or not candidate.exists():
             continue
         resolved = candidate.resolve()
         if resolved not in seen:
@@ -76,18 +80,29 @@ def _read_ini(path: Path) -> configparser.ConfigParser:
     # instead of leaking its keys into every other section.
     ini = configparser.ConfigParser(interpolation=None, default_section="\0")
     try:
-        ini.read_string(path.read_text(encoding="utf-8"), source=str(path))
+        ini.read_string(path.read_text(encoding="utf-8-sig"), source=str(path))
     except (OSError, UnicodeDecodeError, configparser.Error) as e:
         raise ConfigError(f"{path}: {e}") from None
     return ini
 
 
+SUPPORTED_ACTIONS = (argparse._StoreAction, argparse._StoreTrueAction, argparse._StoreFalseAction)
+
+
 def _option_actions(parser: argparse.ArgumentParser) -> dict[str, argparse.Action]:
-    """Map each configurable key (long option name without the dashes) to its action."""
+    """Map each configurable key (long option name without the dashes) to its action.
+
+    Raises NotImplementedError for an option whose action the config layer cannot represent, so adding such an
+    option to a command fails the test suite instead of misbehaving for users.
+    """
     actions = {}
     for action in parser._actions:
-        if action.dest == "help":
+        if action.dest == "help" or not action.option_strings:
             continue
+        if not isinstance(action, SUPPORTED_ACTIONS):
+            raise NotImplementedError(
+                f"{action.option_strings[-1]} uses an action the config layer does not support "
+                f"({type(action).__name__}); supported: store, store_true, store_false")
         for option in action.option_strings:
             if option.startswith("--"):
                 actions[option[2:]] = action
@@ -108,7 +123,10 @@ def _convert_bool(raw: str) -> bool:
 def _convert_one(action: argparse.Action, raw: str, config_dir: Path):
     """Convert a single value through the action's type, rebasing config paths onto the file's directory."""
     if action.type is config_path:
-        value = Path(raw).expanduser()
+        try:
+            value = Path(raw).expanduser()
+        except RuntimeError as e:
+            raise ConfigError(str(e)) from None
         return str(value if value.is_absolute() else config_dir / value)
     if action.type is None:
         return raw
@@ -125,8 +143,11 @@ def _convert_value(action: argparse.Action, raw: str, config_dir: Path):
     """Convert a config value the way argparse would convert the same text on the command line."""
     if not raw.strip():
         raise ConfigError("empty value (give a value or remove the key)")
-    if isinstance(action, (argparse._StoreTrueAction, argparse._StoreFalseAction)):
+    if isinstance(action, argparse._StoreTrueAction):
         return _convert_bool(raw.strip())
+    if isinstance(action, argparse._StoreFalseAction):
+        # A true value means "as if the flag was given", which stores False.
+        return not _convert_bool(raw.strip())
     if action.nargs is None or action.nargs == "?":
         value = _convert_one(action, raw.strip(), config_dir)
         values = [value]
@@ -212,34 +233,59 @@ def _cli_given_group_members(parser: argparse.ArgumentParser, argv: list[str]) -
     return {action.dest for action in actions if getattr(namespace, action.dest) is not sentinel}
 
 
+def _is_help_flag(arg: str) -> bool:
+    """Tell whether a command line argument asks for help, including argparse's --he/--hel abbreviations."""
+    return arg == "-h" or (len(arg) >= 3 and "--help".startswith(arg))
+
+
 def parse_args_with_config(parser: argparse.ArgumentParser, command: str, argv: list[str]) -> argparse.Namespace:
     """Parse `argv` with the parser's defaults replaced by the values the config files set for `command`."""
-    if "-h" in argv or "--help" in argv:
+    if any(_is_help_flag(arg) for arg in argv):
         return parser.parse_args(argv)
-    paths = config_file_paths()
+    _option_actions(parser)  # Reject unsupported option kinds even when no config file exists.
     try:
+        paths = config_file_paths()
         layers = [load_config_values(path, command, parser) for path in paths]
     except ConfigError as e:
         parser.error(str(e))
+    except (OSError, RuntimeError) as e:
+        parser.error(f"cannot look for config files: {e}")
     if paths:
         print(f"[bold]Using config:[/] {escape(', '.join(str(path) for path in paths))}")
     merged = merge_config_values(parser, layers)
-    for action in parser._actions:
-        if action.required and action.dest in merged:
-            action.required = False
+    _relax_required(parser, merged)
     if parser._mutually_exclusive_groups:
-        given = _cli_given_group_members(parser, argv)
-        for group in parser._mutually_exclusive_groups:
-            dests = [action.dest for action in group._group_actions]
-            if any(dest in given for dest in dests):
-                for dest in dests:
-                    merged.pop(dest, None)
+        _drop_groups_given_on_cli(parser, argv, merged)
     parser.set_defaults(**merged)
     return parser.parse_args(argv)
 
 
+def _relax_required(parser: argparse.ArgumentParser, merged: dict[str, object]) -> None:
+    """Let a config value satisfy a required option or a required mutually exclusive group."""
+    for action in parser._actions:
+        if action.required and action.dest in merged:
+            action.required = False
+    for group in parser._mutually_exclusive_groups:
+        if group.required and any(action.dest in merged for action in group._group_actions):
+            group.required = False
+
+
+def _drop_groups_given_on_cli(parser: argparse.ArgumentParser, argv: list[str], merged: dict[str, object]) -> None:
+    """Remove every config value for a mutually exclusive group that the command line sets a member of."""
+    given = _cli_given_group_members(parser, argv)
+    for group in parser._mutually_exclusive_groups:
+        dests = [action.dest for action in group._group_actions]
+        if any(dest in given for dest in dests):
+            for dest in dests:
+                merged.pop(dest, None)
+
+
 def config_epilog() -> str:
     """Describe, for a command's --help, where option defaults can be set."""
-    return (f"Defaults for any --option can be set in a config file: {global_config_path()} applies to every run, "
+    try:
+        global_path = str(global_config_path())
+    except (OSError, RuntimeError):
+        global_path = f"{APP_DIR_NAME}/{CONFIG_FILENAME} in your user config directory"
+    return (f"Defaults for any --option can be set in a config file: {global_path} applies to every run, "
             f"and the nearest {CONFIG_FILENAME} in the current directory or one of its parents overrides it. "
             "Command line arguments override both.")

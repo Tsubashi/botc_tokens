@@ -305,3 +305,83 @@ def test_epilog_names_locations(isolated_config):
     """The help epilog tells users where config files are looked for."""
     text = config_epilog()
     assert CONFIG_FILENAME in text and str(isolated_config.global_path) in text
+
+
+def test_directory_named_like_config_is_an_error_not_skipped(isolated_config, capsys):
+    """A directory called botc_tokens.conf stops the run instead of being skipped for an ancestor's file."""
+    _write_local(isolated_config, "[create]\ncount = 5\n", where=isolated_config.cwd.parent)
+    nested = isolated_config.cwd / CONFIG_FILENAME
+    nested.mkdir()
+    with pytest.raises(SystemExit) as e:
+        parse_args_with_config(_parser(), "create", [])
+    assert e.value.code == 2
+    assert str(nested) in capsys.readouterr().err
+
+
+def test_utf8_bom_is_accepted(tmp_path):
+    """Files saved by Windows tools with a byte-order mark parse normally."""
+    path = tmp_path / CONFIG_FILENAME
+    path.write_bytes(b"\xef\xbb\xbf[create]\ncount = 4\n")
+    assert load_config_values(path, "create", _parser()) == {"count": 4}
+
+
+def test_store_false_key_means_flag_given(tmp_path):
+    """A store_false flag set to true in config behaves as if the flag was passed."""
+    p = argparse.ArgumentParser(prog="x")
+    p.add_argument("--no-cache", action="store_false", dest="cache")
+    path = _conf(tmp_path, "[create]\nno-cache = true\n")
+    assert load_config_values(path, "create", p) == {"cache": False}
+
+
+@pytest.mark.parametrize("kwargs", [{"action": "append"}, {"action": "count"}, {"action": "store_const", "const": 1}])
+def test_unsupported_option_kinds_are_rejected_up_front(isolated_config, kwargs):
+    """An option kind the config layer cannot represent fails loudly even with no config file present."""
+    p = argparse.ArgumentParser(prog="x")
+    p.add_argument("--odd", **kwargs)
+    with pytest.raises(NotImplementedError, match="--odd"):
+        parse_args_with_config(p, "create", [])
+
+
+def test_config_satisfies_required_group(isolated_config):
+    """A required mutually exclusive group is satisfied by a config value for one of its members."""
+    p = argparse.ArgumentParser(prog="x")
+    group = p.add_mutually_exclusive_group(required=True)
+    group.add_argument("--one", type=str)
+    group.add_argument("--two", type=str)
+    _write_local(isolated_config, "[create]\ntwo = t\n")
+    assert parse_args_with_config(p, "create", []).two == "t"
+
+
+def test_unexpandable_home_in_path_is_error(tmp_path):
+    """A ~user that cannot be expanded is a config error, not a traceback."""
+    path = _conf(tmp_path, "[create]\nwhere = ~nosuchuser_botc/x\n")
+    with pytest.raises(ConfigError, match=r"\[create\] where:"):
+        load_config_values(path, "create", _parser())
+
+
+def test_unsearchable_locations_are_errors(isolated_config, monkeypatch, capsys):
+    """Failing to look for config files (unreadable dirs, deleted cwd) is reported, not a traceback."""
+    def boom():
+        raise PermissionError("no access")
+    monkeypatch.setattr(config, "local_start_dir", boom)
+    with pytest.raises(SystemExit) as e:
+        parse_args_with_config(_parser(), "create", [])
+    assert e.value.code == 2
+    assert "no access" in capsys.readouterr().err
+
+
+def test_epilog_survives_unknown_home(monkeypatch):
+    """The epilog still renders when the home directory cannot be determined."""
+    def boom():
+        raise RuntimeError("no home")
+    monkeypatch.setattr(config, "global_config_path", boom)
+    assert CONFIG_FILENAME in config_epilog()
+
+
+def test_abbreviated_help_bypasses_config(isolated_config, capsys):
+    """Argparse's --hel abbreviation of --help also skips config loading."""
+    _write_local(isolated_config, "[create]\ncount = notanumber\n")
+    with pytest.raises(SystemExit) as e:
+        parse_args_with_config(_parser(), "create", ["--hel"])
+    assert e.value.code == 0
+    assert "Using config" not in capsys.readouterr().out
