@@ -45,7 +45,7 @@ jobs:
         with:
           environment-name: imagemagick
           create-args: >-
-            imagemagick=7.1.2_*=imagemagick_*
+            imagemagick=7.1.2_31=imagemagick_*
           # No environment cache: a restored env has no pkgs/ directory, and the license texts are collected from there.
           cache-environment: false
 
