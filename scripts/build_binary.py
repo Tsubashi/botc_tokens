@@ -22,9 +22,12 @@ from bundle_imagemagick import bundle
 # Application Specific
 from botc_tokens.__version__ import version
 
-LAUNCHER = Path(__file__).resolve().parent / "nuitka" / "botc_tokens.py"
+LAUNCHER = Path(__file__).resolve().parent / "nuitka" / "launcher.py"
 PROJECT_LICENSE = Path(__file__).resolve().parent.parent / "LICENSE"
+# The executable cannot be called botc_tokens: the package data folder of that name has to sit beside it.
+BINARY_NAME = "botc-tokens"
 DIST_NAME = "botc_tokens.dist"
+COMPILED_DIST_NAME = f"{LAUNCHER.stem}.dist"
 ARCHIVE_ROOT = "botc_tokens"
 SYSTEM_TAGS = {"Darwin": "macos", "Windows": "windows", "Linux": "linux"}
 MACHINE_TAGS = {"AMD64": "x86_64", "x86_64": "x86_64", "arm64": "arm64", "aarch64": "arm64"}
@@ -39,7 +42,7 @@ def nuitka_command(python: str, output_dir: Path) -> list[str]:
         f"--output-dir={output_dir}",
         "--include-package=botc_tokens",
         "--include-package-data=botc_tokens",
-        "--include-package-data=certifi",
+        f"--output-filename={BINARY_NAME}",
         str(LAUNCHER),
     ]
 
@@ -82,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
     dist = args.output_dir / DIST_NAME
     if not args.skip_compile:
         subprocess.run(nuitka_command(sys.executable, args.output_dir), check=True)
+        # Nuitka names the dist folder after the launcher script, so rename it after the binary instead.
+        shutil.rmtree(dist, ignore_errors=True)
+        (args.output_dir / COMPILED_DIST_NAME).rename(dist)
 
     if args.conda_prefix is None:
         print("Warning: no --conda-prefix given, so no ImageMagick was bundled; the binary needs MAGICK_HOME.")

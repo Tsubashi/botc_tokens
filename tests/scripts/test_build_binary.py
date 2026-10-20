@@ -12,13 +12,13 @@ import pytest
 
 
 def test_launcher_exists():
-    """The Nuitka entry point is named so the dist folder becomes botc_tokens.dist."""
-    assert LAUNCHER.name == "botc_tokens.py"
+    """The Nuitka entry point must not be named botc_tokens.py, or it shadows the package on Nuitka's path."""
+    assert LAUNCHER.name == "launcher.py"
     assert LAUNCHER.is_file()
 
 
 def test_nuitka_command_flags(tmp_path):
-    """Build a standalone binary that includes the package, its data, and certifi's CA bundle."""
+    """Build a standalone binary that includes the package and its data."""
     cmd = nuitka_command("py", tmp_path)
     assert cmd[:3] == ["py", "-m", "nuitka"]
     assert "--standalone" in cmd
@@ -26,7 +26,8 @@ def test_nuitka_command_flags(tmp_path):
     assert f"--output-dir={tmp_path}" in cmd
     assert "--include-package=botc_tokens" in cmd
     assert "--include-package-data=botc_tokens" in cmd
-    assert "--include-package-data=certifi" in cmd
+    assert "--include-package-data=certifi" not in cmd  # Nuitka includes certifi's CA bundle on its own
+    assert "--output-filename=botc-tokens" in cmd  # botc_tokens would collide with the package data folder
     assert cmd[-1] == str(LAUNCHER)
 
 
@@ -59,7 +60,7 @@ def test_archive_name_extension():
 def _make_dist(tmp_path):
     dist = tmp_path / "botc_tokens.dist"
     (dist / "imagemagick" / "lib").mkdir(parents=True)
-    (dist / "botc_tokens").write_text("binary")
+    (dist / "botc-tokens").write_text("binary")
     (dist / "imagemagick" / "lib" / "libMagickWand-7.Q16HDRI.10.dylib").write_text("lib")
     (dist / "imagemagick" / "lib" / "libMagickWand-7.Q16HDRI.dylib").symlink_to("libMagickWand-7.Q16HDRI.10.dylib")
     return dist
@@ -72,7 +73,7 @@ def test_make_archive_tar_keeps_symlinks(tmp_path):
     with tarfile.open(archive) as tar:
         names = tar.getnames()
         link = tar.getmember("botc_tokens/imagemagick/lib/libMagickWand-7.Q16HDRI.dylib")
-    assert "botc_tokens/botc_tokens" in names
+    assert "botc_tokens/botc-tokens" in names
     assert link.issym()
 
 
@@ -82,7 +83,7 @@ def test_make_archive_zip(tmp_path):
     archive = make_archive(dist, tmp_path / "out.zip")
     with zipfile.ZipFile(archive) as archive_file:
         names = archive_file.namelist()
-    assert "botc_tokens/botc_tokens" in names
+    assert "botc_tokens/botc-tokens" in names
     assert all(name.startswith("botc_tokens/") for name in names)
 
 
@@ -90,9 +91,9 @@ def _fake_compile(tmp_path, record):
     def run(cmd, check):
         record.append(cmd)
         output_dir = Path(next(arg for arg in cmd if arg.startswith("--output-dir=")).split("=", 1)[1])
-        dist = output_dir / "botc_tokens.dist"
+        dist = output_dir / "launcher.dist"
         dist.mkdir(parents=True)
-        (dist / "botc_tokens").write_text("binary")
+        (dist / "botc-tokens").write_text("binary")
         return subprocess.CompletedProcess(cmd, 0)
 
     return run
@@ -116,10 +117,25 @@ def test_main_compiles_bundles_and_archives(tmp_path, monkeypatch, capsys):
     assert result == 0
     assert len(commands) == 1 and "--standalone" in commands[0]
     assert bundled == [(tmp_path / "env", output_dir / "botc_tokens.dist", "Linux")]
+    assert not (output_dir / "launcher.dist").exists()
     assert (output_dir / "botc_tokens.dist" / "LICENSE").read_text() == "MIT"
     archive = output_dir / "botc_tokens-9.9.9-linux-x86_64.tar.gz"
     assert archive.is_file()
     assert str(archive) in capsys.readouterr().out
+
+
+def test_main_replaces_a_stale_dist(tmp_path, monkeypatch):
+    """A leftover botc_tokens.dist from an earlier build is replaced, not merged into."""
+    monkeypatch.setattr(build_binary.subprocess, "run", _fake_compile(tmp_path, []))
+    monkeypatch.setattr(build_binary, "version", "9.9.9")
+    monkeypatch.setattr(build_binary, "PROJECT_LICENSE", tmp_path / "missing-LICENSE")
+    output_dir = tmp_path / "out"
+    stale = _make_dist(output_dir)
+    (stale / "stale-file").write_text("old")
+
+    assert main(["--output-dir", str(output_dir), "--system", "Linux", "--machine", "x86_64"]) == 0
+    assert not (output_dir / "botc_tokens.dist" / "stale-file").exists()
+    assert (output_dir / "botc_tokens.dist" / "botc-tokens").is_file()
 
 
 def test_main_skip_compile_without_prefix_warns(tmp_path, monkeypatch, capsys):
