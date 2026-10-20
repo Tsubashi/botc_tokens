@@ -1,11 +1,13 @@
 """General configuration for tests."""
 # Standard Library
 from pathlib import Path
+from types import SimpleNamespace
 
 # Third Party
 import pytest
 
 # Application Specific
+from botc_tokens.helpers import config as config_helper
 from botc_tokens.helpers.token_components import TokenComponents
 
 # Let pytest know we would like them to handle asserts in our helper code
@@ -20,6 +22,23 @@ def wide_console(monkeypatch):
     local machines, so substring assertions on multi-word messages would otherwise be flaky.
     """
     monkeypatch.setenv("COLUMNS", "500")
+
+
+@pytest.fixture(autouse=True)
+def isolated_config(monkeypatch, tmp_path_factory):
+    """Point the config helper at empty temp locations so no real botc_tokens.conf leaks into a test.
+
+    Returns the (nonexistent) global config path and the directory the local search starts from, so tests that
+    want config files can write them there. Uses its own temp directory rather than tmp_path so tests that assert
+    on the exact contents of tmp_path are unaffected.
+    """
+    root = tmp_path_factory.mktemp("config")
+    cwd = root / "cwd"
+    cwd.mkdir()
+    global_path = root / "global" / config_helper.CONFIG_FILENAME
+    monkeypatch.setattr(config_helper, "global_config_path", lambda: global_path)
+    monkeypatch.setattr(config_helper, "local_start_dir", lambda: cwd)
+    return SimpleNamespace(global_path=global_path, cwd=cwd)
 
 
 @pytest.fixture()
