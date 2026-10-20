@@ -49,7 +49,7 @@ version = {attr = "botc_tokens.__version__.__version__"}
 
 [tool.pytest.ini_options]
 # addopts = "--cov --cov-branch --cov-report html --cov-report term-missing --cov-fail-under 100"
-pythonpath = ["src"]
+pythonpath = ["src", "scripts"]
 
 [tool.coverage.run]
 source = ["src"]
