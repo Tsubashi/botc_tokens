@@ -113,6 +113,7 @@ def test_migrate_help_matches_spec(capsys):
         "Convert old directory structures to the new format.",
         'output_dir The directory in which to output the new JSON and intermediates. (Default: ".")',
         "-i INPUT_DIR, --input INPUT_DIR The old directory to convert.",
+        "botc_tokens.conf",
     ):
         assert expected in help_text
 
@@ -187,3 +188,12 @@ def test_migrate_deeply_nested_role_json_is_skipped(tmp_path, capsys):
     assert _run_cmd(["-i", str(inputs), str(tmp_path / "out")]) == 0
     output = capsys.readouterr().out.replace("\n", "")
     assert "Skipping" in output and "deep.json" in output
+
+
+def test_migrate_input_from_config_relative_to_file(tmp_path, isolated_config):
+    """The required --input can come from a config file, resolved relative to that file."""
+    _old_tree(isolated_config.cwd / "old")
+    (isolated_config.cwd / "botc_tokens.conf").write_text("[migrate]\ninput = old\n")
+    out = tmp_path / "out"
+    assert _run_cmd([str(out)]) == 0
+    assert (out / "Script_A.json").is_file()

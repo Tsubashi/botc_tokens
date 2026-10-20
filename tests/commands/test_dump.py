@@ -76,3 +76,12 @@ def test_dump_output_is_a_file_exits_1(tmp_path, capsys, what):
     not_a_dir.write_text("x")
     assert _run_cmd([what, str(not_a_dir / "sub")]) == 1
     assert "Error:" in capsys.readouterr().out
+
+
+def test_dump_rejects_unknown_config_key(isolated_config, capsys):
+    """The dump command has no options yet, so any key under [dump] is unknown."""
+    (isolated_config.cwd / "botc_tokens.conf").write_text("[dump]\noutput-dir = x\n")
+    with pytest.raises(SystemExit) as e:
+        _run_cmd(["duplicates"])
+    assert e.value.code == 2
+    assert "[dump] output-dir: unknown option" in capsys.readouterr().err

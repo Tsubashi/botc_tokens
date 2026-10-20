@@ -17,6 +17,7 @@ from wand.exceptions import WandException
 from wand.image import Image
 
 # Application Specific
+from ..helpers.config import config_epilog, config_path, parse_args_with_config
 from ..helpers.icons import acquire_icon
 from ..helpers.official_data import needs_official_data, OfficialData, OfficialDataError
 from ..helpers.overrides import load_duplicates, load_icon_lookup, official_ids
@@ -70,20 +71,21 @@ def _parse_args():
     parser = argparse.ArgumentParser(
         prog="botc_tokens create",
         usage="%(prog)s [OPTIONS LISTED BELOW] [script_path_or_URL]",
-        description="Create print-n-play sheets from a script JSON.")
+        description="Create print-n-play sheets from a script JSON.",
+        epilog=config_epilog())
     parser.add_argument("script", metavar="script_path_or_URL", type=str,
                         help="The location of the script JSON for which to create the print-n-play sheets. "
                              "Can be a file path or a URL.")
-    parser.add_argument("-o", "--output-dir", type=str, default=".",
+    parser.add_argument("-o", "--output-dir", type=config_path, default=".",
                         help="Where to save the print-n-play sheets. (Default: '.')")
-    parser.add_argument("-m", "--intermediate-dir", type=str, default=None,
+    parser.add_argument("-m", "--intermediate-dir", type=config_path, default=None,
                         help="Optional path to store intermediate output such as icons and generated tokens. "
                              "Useful for storing a cache, or if you want to use the individual token images. "
                              "(Default: None)")
     parser.add_argument("--incremental", action="store_true",
                         help="Don't overwrite existing tokens in the intermediate dir. "
                              "No effect if -m is not specified.")
-    parser.add_argument("-c", "--components", type=str, default=None,
+    parser.add_argument("-c", "--components", type=config_path, default=None,
                         help="The directory or zip in which to find the token components. (leaves, backgrounds, etc.)")
     parser.add_argument("--dpi", type=_positive_int, default=DEFAULT_DPI,
                         help="The DPI to use for distance-to-pixel calculations, such as token diameters. "
@@ -114,14 +116,14 @@ def _parse_args():
                        help="The name of the type of paper to use for the tokens. "
                             f"One of: [{', '.join(PAPER_SIZES_MM)}]. Cannot be used with --paper-size "
                             f"(Default: {DEFAULT_PAPER_TYPE})")
-    parser.add_argument("--duplicates", type=str, default=None,
+    parser.add_argument("--duplicates", type=config_path, default=None,
                         help="A json file containing the number of duplicates to add for each role.")
-    parser.add_argument("--icon-lookup", type=str, default=None,
+    parser.add_argument("--icon-lookup", type=config_path, default=None,
                         help="A json file mapping role IDs to icon URLs or paths, "
                              "used for roles that do not specify an image.")
     parser.add_argument("--grid", action="store_true",
                         help="Use a grid layout instead of close packing.")
-    return parser.parse_args(sys.argv[2:])
+    return parse_args_with_config(parser, "create", sys.argv[2:])
 
 
 class _Progress:

@@ -437,3 +437,32 @@ def test_create_broken_component_font_exits_1(tmp_path, web, solo_script, compon
     output = _output(capsys)
     assert "Error:" in output
     assert "font" in output
+
+
+def test_create_reads_intermediate_dir_and_paper_from_config(tmp_path, isolated_config, web, solo_script, capsys):
+    """A local config supplies -m relative to the file and the paper type; the run prints which file it used."""
+    local = isolated_config.cwd / "botc_tokens.conf"
+    local.write_text("[create]\nintermediate-dir = work\npaper-type = a4\n")
+    assert _run_cmd(["-o", str(tmp_path / "out"), solo_script]) == 0
+    assert (isolated_config.cwd / "work" / "icons").is_dir()
+    out = _output(capsys)
+    assert "Using config:" in out and str(local) in out
+    box = PdfReader(tmp_path / "out" / "roles.pdf").pages[0].mediabox
+    assert (round(float(box.width) / 72 * 25.4), round(float(box.height) / 72 * 25.4)) == (210, 297)
+
+
+def test_create_cli_paper_size_beats_config_paper_type(tmp_path, isolated_config, web, solo_script):
+    """--paper-size on the command line wins over paper-type from config without a mutual-exclusion error."""
+    (isolated_config.cwd / "botc_tokens.conf").write_text("[create]\npaper-type = a4\n")
+    assert _run_cmd(["-o", str(tmp_path / "out"), "--paper-size", "100", "100", solo_script]) == 0
+    box = PdfReader(tmp_path / "out" / "roles.pdf").pages[0].mediabox
+    assert (round(float(box.width) / 72 * 25.4), round(float(box.height) / 72 * 25.4)) == (100, 100)
+
+
+def test_create_config_error_exits_two(isolated_config, capsys):
+    """A bad config value is reported like a bad command line argument."""
+    (isolated_config.cwd / "botc_tokens.conf").write_text("[create]\ndpi = 0\n")
+    with pytest.raises(SystemExit) as e:
+        _run_cmd(["script.json"])
+    assert e.value.code == 2
+    assert "[create] dpi: '0' must be greater than zero" in capsys.readouterr().err

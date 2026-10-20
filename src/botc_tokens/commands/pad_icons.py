@@ -12,6 +12,7 @@ from wand.exceptions import WandException
 from wand.image import Image
 
 # Application Specific
+from ..helpers.config import config_epilog, parse_args_with_config
 from ..helpers.icons import is_blank, pad_icon
 from ..helpers.progress_group import setup_progress_group
 
@@ -19,10 +20,11 @@ from ..helpers.progress_group import setup_progress_group
 def _parse_args():
     parser = argparse.ArgumentParser(
         prog="botc_tokens pad-icons",
-        description="Find all icons in a folder and add extra space to match what the official icons do (if needed).")
+        description="Find all icons in a folder and add extra space to match what the official icons do (if needed).",
+        epilog=config_epilog())
     parser.add_argument("target_directory", type=str, help="The directory containing the icons.")
     parser.add_argument("-i", "--in-place", action="store_true", help="Overwrite the original files.")
-    return parser.parse_args(sys.argv[2:])
+    return parse_args_with_config(parser, "pad-icons", sys.argv[2:])
 
 
 def _pad_file(icon_path: Path, in_place: bool) -> None:
