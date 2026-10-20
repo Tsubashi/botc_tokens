@@ -55,7 +55,7 @@ def main():
     if args.command not in allowed_commands:
         print("[bold red]Error:[/] Unrecognized command")
         parser.print_help()
-        exit(-1)
+        sys.exit(-1)
 
     # Invoke the subcommand
     retcode = allowed_commands[args.command][0]()
@@ -63,7 +63,7 @@ def main():
     retcode = retcode or 0
     if retcode == 0:
         print("[bold green]Done![/]")
-    exit(retcode)
+    sys.exit(retcode)
 
 
 # We don't test coverage for this, since we don't test it directly.
