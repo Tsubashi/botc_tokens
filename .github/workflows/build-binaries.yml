@@ -72,7 +72,8 @@ jobs:
       - name: Confirm the bundle ships license texts and no Ghostscript
         run: |
           ls build/nuitka/botc_tokens.dist/THIRD_PARTY_LICENSES/imagemagick-*/
-          ! find build/nuitka/botc_tokens.dist/imagemagick -iname 'libgs*' -o -iname 'gsdll*' | grep .
+          # Same patterns as prune_ghostscript; a bare libgs* would also match Kerberos (libgssapi_krb5, libgssrpc).
+          ! find build/nuitka/botc_tokens.dist/imagemagick -iname 'libgs.*' -o -iname 'libgs-*' -o -iname 'gsdll*' | grep .
 
       - name: Remove the runner's own ImageMagick so the smoke tests cannot use it
         if: matrix.os != 'windows'
