@@ -6,7 +6,6 @@ is why ``botc_tokens/__init__.py`` calls :func:`activate` first thing. For ordin
 exists and nothing happens.
 """
 # Standard Library
-import builtins
 import os
 from pathlib import Path
 import platform
@@ -23,19 +22,23 @@ DATA_DIR_NAME = "botc_tokens_data"
 def installation_dir(compiled: object | None = None, argv0: str | None = None) -> Path:
     """Return the directory the program runs from.
 
-    Under Nuitka, ``__compiled__.containing_dir`` names the dist folder, whatever path the user launched through.
-    ``sys.executable`` is useless there: Nuitka points it at a ``python`` that does not exist beside argv[0], so a
-    symlink on PATH would make it resolve to the wrong directory. Without Nuitka, follow argv[0] through symlinks.
+    Under Nuitka, ``__compiled__.python_runtime_dir`` names the dist folder and ``process_exe`` the real binary,
+    whatever path the user launched through. ``sys.executable`` and ``containing_dir`` are no use there: both follow
+    the unresolved argv[0], so a symlink on PATH would point them at the wrong directory. Without Nuitka, follow
+    argv[0] through symlinks.
 
     Args:
         compiled: Nuitka's ``__compiled__`` object; defaults to the one in this module's namespace, if any.
         argv0: The program path as invoked; defaults to ``sys.argv[0]``.
     """
     if compiled is None:
-        compiled = globals().get("__compiled__", getattr(builtins, "__compiled__", None))
-    containing_dir = getattr(compiled, "containing_dir", None)
-    if containing_dir:
-        return Path(containing_dir)
+        compiled = globals().get("__compiled__")
+    runtime_dir = getattr(compiled, "python_runtime_dir", None)
+    if runtime_dir:
+        return Path(runtime_dir)
+    process_exe = getattr(compiled, "process_exe", None)
+    if process_exe:
+        return Path(process_exe).parent
     return Path(os.path.realpath(sys.argv[0] if argv0 is None else argv0)).parent
 
 

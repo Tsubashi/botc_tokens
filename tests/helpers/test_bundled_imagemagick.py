@@ -45,19 +45,33 @@ def test_find_bundle_ignores_files_named_like_the_bundle(tmp_path):
 
 
 class _Compiled:
-    """Stand-in for Nuitka's __compiled__ object."""
+    """Stand-in for Nuitka's __compiled__ object, with only the fields a given test provides."""
 
-    def __init__(self, containing_dir):
-        self.containing_dir = containing_dir
+    def __init__(self, **fields):
+        self.__dict__.update(fields)
 
 
-def test_installation_dir_prefers_nuitka_containing_dir(tmp_path):
-    """Nuitka tells us where the dist folder is; that beats every other guess."""
-    assert installation_dir(compiled=_Compiled(str(tmp_path)), argv0="/elsewhere/botc_tokens") == tmp_path
+def test_installation_dir_prefers_nuitka_runtime_dir(tmp_path):
+    """Nuitka names the dist folder directly; that beats every other guess."""
+    compiled = _Compiled(python_runtime_dir=str(tmp_path), containing_dir="/launched", process_exe="/x/botc_tokens")
+    assert installation_dir(compiled=compiled, argv0="/elsewhere/botc_tokens") == tmp_path
+
+
+def test_installation_dir_falls_back_to_process_exe(tmp_path):
+    """Older Nuitka without python_runtime_dir still reports the real binary path."""
+    compiled = _Compiled(containing_dir="/launched/from", process_exe=str(tmp_path / "botc_tokens"))
+    assert installation_dir(compiled=compiled, argv0="/elsewhere/botc_tokens") == tmp_path
+
+
+def test_installation_dir_never_uses_containing_dir(tmp_path):
+    """containing_dir is the parent of the dist folder as launched, which is wrong through a symlink."""
+    (tmp_path / "botc_tokens").write_text("")
+    compiled = _Compiled(containing_dir="/launched/from")
+    assert installation_dir(compiled=compiled, argv0=str(tmp_path / "botc_tokens")) == tmp_path
 
 
 def test_installation_dir_resolves_symlinked_argv0(tmp_path):
-    """Without Nuitka's hint, follow the symlink users put on PATH back to the real executable's directory."""
+    """Without Nuitka's hints, follow the symlink users put on PATH back to the real executable's directory."""
     real = tmp_path / "real"
     real.mkdir()
     (real / "botc_tokens").write_text("")
@@ -65,12 +79,6 @@ def test_installation_dir_resolves_symlinked_argv0(tmp_path):
     link_dir.mkdir()
     (link_dir / "botc_tokens").symlink_to(real / "botc_tokens")
     assert installation_dir(compiled=None, argv0=str(link_dir / "botc_tokens")) == real
-
-
-def test_installation_dir_ignores_compiled_without_containing_dir(tmp_path):
-    """An older Nuitka without containing_dir falls through to argv[0]."""
-    (tmp_path / "botc_tokens").write_text("")
-    assert installation_dir(compiled=object(), argv0=str(tmp_path / "botc_tokens")) == tmp_path
 
 
 def test_installation_dir_defaults_do_not_find_a_bundle():
