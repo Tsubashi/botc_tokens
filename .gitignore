@@ -200,5 +200,6 @@ dmypy.json
 .bard/
 .perplexity/
 .superpowers/
+docs/superpowers/
 change-requests/
 botc_tokens_defaults/
