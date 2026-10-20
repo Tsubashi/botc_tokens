@@ -49,6 +49,7 @@ def make_posix_prefix(root):
     pkgs = root / "pkgs"
     _touch(pkgs / "imagemagick-7.1.1-h1" / "info" / "licenses" / "LICENSE", "ImageMagick license")
     _write_meta(prefix, "imagemagick", "7.1.1", pkgs / "imagemagick-7.1.1-h1", "ImageMagick")
+    _touch(pkgs / "zlib-1.3-h2" / "info" / "index.json", "{}")  # present, but ships no license texts
     _write_meta(prefix, "zlib", "1.3", pkgs / "zlib-1.3-h2")
     return prefix
 
@@ -207,3 +208,20 @@ def test_main_runs(tmp_path, capsys):
     assert main(["--prefix", str(prefix), "--dist", str(dist), "--system", "Linux"]) == 0
     assert (dist / "imagemagick" / "lib" / "libpng16.so.16").is_file()
     assert "imagemagick" in capsys.readouterr().out
+
+
+def test_collect_licenses_fails_when_a_package_dir_is_missing(tmp_path):
+    """A record pointing at an absent package directory means the texts cannot be collected; fail loudly."""
+    prefix = tmp_path / "prefix"
+    record = {"name": "libpng", "version": "1.6", "link": {"source": str(tmp_path / "gone" / "libpng-1.6-h3")}}
+    _touch(prefix / "conda-meta" / "libpng-1.6-h3.json", json.dumps(record))
+    with pytest.raises(FileNotFoundError, match="libpng"):
+        collect_licenses(prefix, tmp_path / "licenses")
+
+
+def test_collect_licenses_fails_when_a_record_names_no_package_dir(tmp_path):
+    """A record without any package directory cannot be verified either."""
+    prefix = tmp_path / "prefix"
+    _touch(prefix / "conda-meta" / "zlib-1.3-h2.json", json.dumps({"name": "zlib", "version": "1.3"}))
+    with pytest.raises(FileNotFoundError, match="zlib"):
+        collect_licenses(prefix, tmp_path / "licenses")

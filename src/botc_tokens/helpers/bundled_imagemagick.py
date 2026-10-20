@@ -6,6 +6,7 @@ is why ``botc_tokens/__init__.py`` calls :func:`activate` first thing. For ordin
 exists and nothing happens.
 """
 # Standard Library
+import builtins
 import os
 from pathlib import Path
 import platform
@@ -19,19 +20,38 @@ BUNDLE_DIR_NAME = "imagemagick"
 DATA_DIR_NAME = "botc_tokens_data"
 
 
-def _beside_executable(executable: str, name: str) -> Path | None:
-    candidate = Path(executable).resolve().parent / name
+def installation_dir(compiled: object | None = None, argv0: str | None = None) -> Path:
+    """Return the directory the program runs from.
+
+    Under Nuitka, ``__compiled__.containing_dir`` names the dist folder, whatever path the user launched through.
+    ``sys.executable`` is useless there: Nuitka points it at a ``python`` that does not exist beside argv[0], so a
+    symlink on PATH would make it resolve to the wrong directory. Without Nuitka, follow argv[0] through symlinks.
+
+    Args:
+        compiled: Nuitka's ``__compiled__`` object; defaults to the one in this module's namespace, if any.
+        argv0: The program path as invoked; defaults to ``sys.argv[0]``.
+    """
+    if compiled is None:
+        compiled = globals().get("__compiled__", getattr(builtins, "__compiled__", None))
+    containing_dir = getattr(compiled, "containing_dir", None)
+    if containing_dir:
+        return Path(containing_dir)
+    return Path(os.path.realpath(sys.argv[0] if argv0 is None else argv0)).parent
+
+
+def _beside(install_dir: Path, name: str) -> Path | None:
+    candidate = install_dir / name
     return candidate if candidate.is_dir() else None
 
 
-def find_bundle(executable: str) -> Path | None:
-    """Return the ImageMagick bundle directory beside the given executable, or None if there is none."""
-    return _beside_executable(executable, BUNDLE_DIR_NAME)
+def find_bundle(install_dir: Path) -> Path | None:
+    """Return the ImageMagick bundle directory inside the installation directory, or None if there is none."""
+    return _beside(install_dir, BUNDLE_DIR_NAME)
 
 
-def find_data_dir(executable: str) -> Path | None:
-    """Return the package data directory beside the given executable, or None if there is none."""
-    return _beside_executable(executable, DATA_DIR_NAME)
+def find_data_dir(install_dir: Path) -> Path | None:
+    """Return the package data directory inside the installation directory, or None if there is none."""
+    return _beside(install_dir, DATA_DIR_NAME)
 
 
 def _first_module_dir(bundle: Path, kind: str) -> Path | None:
@@ -71,25 +91,25 @@ def bundle_environment(bundle: Path, system: str) -> dict[str, str]:
 
 
 def activate(
-    executable: str | None = None,
+    install_dir: Path | None = None,
     environ: MutableMapping[str, str] | None = None,
     system: str | None = None,
 ) -> dict[str, str]:
-    """Apply the bundle environment for the bundle beside the executable, without overriding existing settings.
+    """Apply the bundle environment for the bundle in the installation directory, without overriding existing settings.
 
     Args:
-        executable: The running executable; defaults to ``sys.executable``.
+        install_dir: Where the program runs from; defaults to :func:`installation_dir`.
         environ: The environment to update; defaults to ``os.environ``.
         system: A ``platform.system()`` value; defaults to the current platform.
 
     Returns:
         The variables that were applied. Empty when there is no bundle.
     """
-    executable = sys.executable if executable is None else executable
+    install_dir = installation_dir() if install_dir is None else install_dir
     environ = os.environ if environ is None else environ
     system = platform.system() if system is None else system
 
-    bundle = find_bundle(executable)
+    bundle = find_bundle(install_dir)
     if bundle is None:
         return {}
 
@@ -99,7 +119,7 @@ def activate(
     applied = {key: value for key, value in wanted.items() if key not in environ}
     environ.update(applied)
 
-    if system == "Windows":
+    if system == "Windows" and "MAGICK_HOME" in applied:
         # wand consults the ImageMagick registry key before MAGICK_HOME, and only falls back to searching PATH, so the
         # bundle must be first on PATH to win over a stale or foreign registry entry.
         bin_dir = str(bundle / "bin")

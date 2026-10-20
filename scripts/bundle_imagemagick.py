@@ -106,15 +106,23 @@ def prune_ghostscript(bundle_dir: Path) -> list[Path]:
 
 
 def collect_licenses(prefix: Path, dest: Path) -> list[str]:
-    """Copy each conda package's license texts into dest and write a PACKAGES.txt listing."""
+    """Copy each conda package's license texts into dest and write a PACKAGES.txt listing.
+
+    Raises:
+        FileNotFoundError: If a package's directory is gone (for example a cached env without ``pkgs``), since the
+            archive would then silently ship without the license texts the project promises.
+    """
     lines = []
     for record_path in sorted((prefix / "conda-meta").glob("*.json")):
         record = json.loads(record_path.read_text())
         name, version = record["name"], record["version"]
         lines.append(f"{name} {version} {record.get('license') or 'unknown'}")
         package_dir = record.get("link", {}).get("source") or record.get("extracted_package_dir")
-        licenses = Path(package_dir) / "info" / "licenses" if package_dir else None
-        if licenses is not None and licenses.is_dir():
+        if not package_dir or not Path(package_dir).is_dir():
+            # A restored environment cache has no package directories, and then no license texts could be shipped.
+            raise FileNotFoundError(f"Package directory for {name} {version} is missing: {package_dir!r}")
+        licenses = Path(package_dir) / "info" / "licenses"
+        if licenses.is_dir():
             shutil.copytree(licenses, dest / f"{name}-{version}", dirs_exist_ok=True)
     dest.mkdir(parents=True, exist_ok=True)
     (dest / "PACKAGES.txt").write_text("\n".join(lines) + "\n")

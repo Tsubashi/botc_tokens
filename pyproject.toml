@@ -38,7 +38,7 @@ test = [
     "pypdf"
     ]
 build = [
-    "nuitka",
+    "nuitka ~= 4.3",
     "ordered-set",
     "zstandard"
     ]

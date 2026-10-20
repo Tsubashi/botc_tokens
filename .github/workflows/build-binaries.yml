@@ -45,8 +45,9 @@ jobs:
         with:
           environment-name: imagemagick
           create-args: >-
-            imagemagick=7.1.*=imagemagick_*
-          cache-environment: true
+            imagemagick=7.1.2_*=imagemagick_*
+          # No environment cache: a restored env has no pkgs/ directory, and the license texts are collected from there.
+          cache-environment: false
 
       - name: Confirm the non-AGPL ImageMagick variant was resolved
         run: |
@@ -68,12 +69,18 @@ jobs:
       - name: Build the binary and bundle ImageMagick
         run: python scripts/build_binary.py --conda-prefix "$MAMBA_ROOT_PREFIX/envs/imagemagick" --output-dir build/nuitka
 
+      - name: Confirm the bundle ships license texts and no Ghostscript
+        run: |
+          ls build/nuitka/botc_tokens.dist/THIRD_PARTY_LICENSES/imagemagick-*/
+          ! find build/nuitka/botc_tokens.dist/imagemagick -iname 'libgs*' -o -iname 'gsdll*' | grep .
+
       - name: Remove the runner's own ImageMagick so the smoke tests cannot use it
         if: matrix.os != 'windows'
         run: |
           case "${{ matrix.os }}" in
             linux)   sudo apt-get remove -y --purge 'libmagick*' imagemagick imagemagick-6-common || true ;;
-            macos)   brew uninstall --ignore-dependencies --force imagemagick || true ;;
+            macos)   brew uninstall --ignore-dependencies --force imagemagick || true
+                     if brew list imagemagick >/dev/null 2>&1; then echo "imagemagick still installed"; exit 1; fi ;;
           esac
 
       - name: Remove the runner's own ImageMagick so the smoke tests cannot use it (Windows)
@@ -93,6 +100,20 @@ jobs:
           env -u MAGICK_HOME "$BIN" create tests/data/scripts/bloodstar_save.json -o smoke-offline
           test -s smoke-offline/roles.pdf
           test -s smoke-offline/reminders.pdf
+
+      - name: Smoke test (the bundled ImageMagick is what loads, also through a symlink on PATH)
+        if: matrix.os != 'windows'
+        run: |
+          BIN="$PWD/build/nuitka/botc_tokens.dist/botc_tokens"
+          mkdir -p "$RUNNER_TEMP/linkbin" && ln -sf "$BIN" "$RUNNER_TEMP/linkbin/botc_tokens"
+          cd "$RUNNER_TEMP"
+          if [ "${{ matrix.os }}" = macos ]; then
+            env -u MAGICK_HOME DYLD_PRINT_LIBRARIES=1 linkbin/botc_tokens version 2>&1 | grep -F "botc_tokens.dist/imagemagick/lib/libMagickWand"
+          else
+            env -u MAGICK_HOME LD_DEBUG=libs linkbin/botc_tokens version 2>&1 | grep -F "botc_tokens.dist/imagemagick/lib/libMagickWand"
+          fi
+          env -u MAGICK_HOME linkbin/botc_tokens create "$GITHUB_WORKSPACE/tests/data/scripts/bloodstar_save.json" -o smoke-symlink
+          test -s smoke-symlink/roles.pdf
 
       - name: Smoke test (offline, inside a bare Ubuntu container)
         if: matrix.os == 'linux'

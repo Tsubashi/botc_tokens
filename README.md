@@ -25,7 +25,8 @@ Notes:
   time. Either right-click the `botc_tokens` program and choose *Open*, or clear the quarantine flag with
   `xattr -dr com.apple.quarantine botc_tokens` after unpacking.
 - Windows SmartScreen may warn about an unrecognised program for the same reason; choose *More info*, then *Run anyway*.
-- Setting `MAGICK_HOME` makes the binary use that ImageMagick instead of the bundled one.
+- Setting `MAGICK_HOME` makes the binary use that ImageMagick instead of the bundled one. On Windows, an ImageMagick
+  installed with the official installer also takes precedence, because Wand finds it through the registry first.
 - The `THIRD_PARTY_LICENSES` folder in each archive lists the licenses of the bundled libraries.
 
 ### Python package
