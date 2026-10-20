@@ -5,7 +5,7 @@ name: Build binaries
 
 on:
   push:
-    branches: [ "dev", "nuitka" ]
+    branches: [ "dev" ]
   release:
     types: [ published ]
   workflow_dispatch:
