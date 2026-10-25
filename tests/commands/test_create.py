@@ -11,8 +11,9 @@ import pytest
 
 # Application Specific
 from botc_tokens.commands import create
-from botc_tokens.helpers.official_data import NIGHTSHEET_URL, ROLES_URL
+from botc_tokens.helpers.official_data import NIGHTSHEET_URL, ROLES_URL, translation_url
 from botc_tokens.helpers.overrides import load_icon_lookup
+from botc_tokens.helpers.role import Role
 
 SOLO_ICON_URL = "https://example.test/solo.png"
 
@@ -466,3 +467,60 @@ def test_create_config_error_exits_two(isolated_config, capsys):
         _run_cmd(["script.json"])
     assert e.value.code == 2
     assert "[create] dpi: '0' must be greater than zero" in capsys.readouterr().err
+
+
+@pytest.fixture()
+def french_web(web, test_data_dir):
+    """Serve the French fixture translation alongside the official feeds."""
+    web.routes[translation_url("fr")] = (test_data_dir / "official" / "fr.json").read_bytes()
+    return web
+
+
+def test_create_language_translates_official_text(tmp_path, french_web):
+    """With --language, bare official ids are filled with translated names, abilities, and reminders."""
+    script = _write_script(tmp_path / "script.json", ["washerwoman", {"id": "drunk", "team": "outsider"}, _solo()])
+    out = tmp_path / "out"
+    cache = tmp_path / "cache"
+
+    assert _run_cmd(["-o", str(out), "-m", str(cache), "--language", "fr", script]) == 0
+
+    assert translation_url("fr") in french_web.calls
+    assert (out / "roles.pdf").is_file()
+    tokens = cache / "tokens_script"
+    assert (tokens / "washerwoman-reminder-2.png").is_file()
+    assert (tokens / "drunk-reminder-1.png").is_file()
+
+
+def test_resolve_official_with_language(french_web):
+    """The language reaches the official data: translated gaps, untouched script text."""
+    roles = create._resolve_official([Role("washerwoman"), Role("drunk", name="Mine", team="outsider")], {}, "fr")
+    assert [role.name for role in roles] == ["Lavandière", "Mine"]
+    assert roles[0].reminders == ["Villageois", "Wrong"]
+    assert roles[1].reminders == ["Est l'Ivrogne"]
+
+
+def test_create_default_language_skips_translation(tmp_path, web):
+    """Without --language, no translation file is fetched."""
+    script = _write_script(tmp_path / "script.json", ["imp"])
+
+    assert _run_cmd(["-o", str(tmp_path / "out"), script]) == 0
+
+    assert not any("botc-translations" in url for url in web.calls)
+
+
+def test_create_unknown_language_exits_1(tmp_path, web, capsys):
+    """A language with no translation file is fatal and points at the translation site."""
+    script = _write_script(tmp_path / "script.json", ["imp"])
+
+    assert _run_cmd(["-o", str(tmp_path / "out"), "--language", "xx", script]) == 1
+
+    out = _output(capsys)
+    assert "Error:" in out
+    assert "'xx'" in out
+    assert "translation.botc.app" in out
+
+
+def test_create_language_without_official_roles_skips_fetch(tmp_path, web, solo_script):
+    """A fully homebrew script never needs the translation file, even with --language."""
+    assert _run_cmd(["-o", str(tmp_path / "out"), "--language", "xx", solo_script]) == 0
+    assert not any("botc-translations" in url for url in web.calls)

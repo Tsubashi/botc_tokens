@@ -4,7 +4,7 @@ import pytest
 
 # Application Specific
 from botc_tokens.helpers.official_data import (
-    needs_official_data, NIGHTSHEET_URL, OfficialData, OfficialDataError, ROLES_URL
+    needs_official_data, NIGHTSHEET_URL, OfficialData, OfficialDataError, reminder_key, ROLES_URL, translation_url
 )
 from botc_tokens.helpers.role import Role
 from botc_tokens.helpers.web import FetchError
@@ -138,3 +138,120 @@ def test_fill_complete_role_changes_nothing(official):
     role = Role("imp", "Mine", "minion", "mine", ["r"], True, False, True, "i.png")
     assert official.fill_role(role) is True
     assert role == Role("imp", "Mine", "minion", "mine", ["r"], True, False, True, "i.png")
+
+
+@pytest.fixture()
+def french(fake_feeds, test_data_dir):
+    """Return an OfficialData loaded with the French fixture translation."""
+    fake_feeds.routes[translation_url("fr")] = (test_data_dir / "official" / "fr.json").read_bytes()
+    data = OfficialData(language="fr")
+    data.load()
+    return data
+
+
+def test_translation_url():
+    """The translation feed lives in TPI's translations repository, one file per language."""
+    assert translation_url("fr") == (
+        "https://raw.githubusercontent.com/ThePandemoniumInstitute/botc-translations/main/game/fr.json"
+    )
+
+
+@pytest.mark.parametrize("text, key", [
+    ("Townsfolk", "townsfolk"), ("Is The Drunk", "isthedrunk"), ("About To Die", "abouttodie"),
+    ("3 Attacks", "3attacks"), ("Dead - Don't Vote", "deaddontvote"), ("?", ""), ("X", "x"),
+])
+def test_reminder_key(text, key):
+    """English reminder text maps onto the translation table's keys by dropping case and punctuation."""
+    assert reminder_key(text) == key
+
+
+def test_language_fill_translates_text(french):
+    """With a language, the name, ability, and reminders come from the translation."""
+    role = Role("washerwoman")
+    assert french.fill_role(role) is True
+    assert role.name == "Lavandière"
+    assert role.ability.startswith("Lors de votre première nuit")
+    # "Townsfolk" is translated; "Wrong" is not in the table and stays English
+    assert role.reminders == ["Villageois", "Wrong"]
+    # Language-neutral fields still come from the English feeds
+    assert role.team == "townsfolk"
+    assert role.first_night is True
+
+
+def test_language_fill_falls_back_per_field(french):
+    """Fields missing from a partial translation fall back to English one at a time."""
+    drunk = Role("drunk")
+    french.fill_role(drunk)
+    assert drunk.name == "Ivrogne"
+    assert drunk.ability.startswith("You do not know you are the Drunk")
+    assert drunk.reminders == ["Est l'Ivrogne"]
+    imp = Role("imp")
+    french.fill_role(imp)
+    assert imp.name == "Imp"
+    assert imp.reminders == ["Mort"]
+
+
+def test_language_fill_keeps_explicit_fields(french):
+    """Text the script wrote is never replaced by a translation."""
+    role = Role("washerwoman", name="Mine", reminders=["Townsfolk"])
+    french.fill_role(role)
+    assert role.name == "Mine"
+    assert role.reminders == ["Townsfolk"]
+    assert role.ability.startswith("Lors de votre première nuit")
+
+
+def test_language_ignores_malformed_translation_entries(french):
+    """Translation values that are not strings are treated as missing."""
+    french.translations["washerwoman"] = {"name": 3, "ability": None}
+    french.reminder_translations["townsfolk"] = ["x"]
+    role = Role("washerwoman")
+    french.fill_role(role)
+    assert role.name == "Washerwoman"
+    assert role.ability.startswith("You start knowing")
+    assert role.reminders == ["Townsfolk", "Wrong"]
+
+
+@pytest.mark.parametrize("language", [None, "en", "EN"])
+def test_english_skips_translation_fetch(fake_feeds, language):
+    """English needs no translation file."""
+    data = OfficialData(language=language)
+    data.load()
+    assert translation_url("en") not in fake_feeds.calls
+    role = Role("washerwoman")
+    data.fill_role(role)
+    assert role.name == "Washerwoman"
+
+
+def test_unknown_language_is_error(fake_feeds):
+    """A language with no translation file names the code and where to look."""
+    with pytest.raises(OfficialDataError, match="'xx'.*translation.botc.app"):
+        OfficialData(language="xx").load()
+
+
+def test_translation_fetch_failure_is_error(fake_feeds):
+    """Other fetch failures and bad JSON are reported as official data errors."""
+    fake_feeds.routes[translation_url("fr")] = FetchError("boom")
+    with pytest.raises(OfficialDataError, match="boom"):
+        OfficialData(language="fr").load()
+    fake_feeds.routes[translation_url("fr")] = b"not json"
+    with pytest.raises(OfficialDataError):
+        OfficialData(language="fr").load()
+
+
+@pytest.mark.parametrize("body", [b"[]", b'{"roles": []}', b'{"roles": {"imp": "x"}}', b'{"reminders": []}'])
+def test_translation_wrong_shape_is_error(fake_feeds, body):
+    """A translation file that is not a dict of role dicts and a reminder dict is an error."""
+    fake_feeds.routes[translation_url("fr")] = body
+    with pytest.raises(OfficialDataError, match="Unexpected format"):
+        OfficialData(language="fr").load()
+
+
+def test_translation_without_sections_is_empty(fake_feeds):
+    """A translation file that has no roles or reminders yet translates nothing."""
+    fake_feeds.routes[translation_url("fr")] = b"{}"
+    data = OfficialData(language="fr")
+    data.load()
+    role = Role("washerwoman")
+    data.fill_role(role)
+    assert role.name == "Washerwoman"
+    assert role.reminders == ["Townsfolk", "Wrong"]

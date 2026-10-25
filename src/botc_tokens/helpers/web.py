@@ -21,6 +21,10 @@ class FetchError(RuntimeError):
     """Raised when a remote resource cannot be fetched."""
 
 
+class NotFoundError(FetchError):
+    """Raised when a remote resource does not exist."""
+
+
 def is_url(location: str) -> bool:
     """Return True if the location is an http or https URL."""
     return location.lower().startswith(("http://", "https://"))
@@ -47,7 +51,7 @@ def fetch(url: str) -> bytes:
             return urlopen(Request(url, headers=REQUEST_HEADERS), timeout=FETCH_TIMEOUT).read()
         except HTTPError as e:
             if e.code == 404:
-                raise FetchError(f"Unable to fetch {url}: not found") from e
+                raise NotFoundError(f"Unable to fetch {url}: not found") from e
             reason = e
         except (URLError, OSError, http.client.HTTPException) as e:  # Connection resets, timeouts, bad responses
             reason = e

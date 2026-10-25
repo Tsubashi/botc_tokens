@@ -121,6 +121,10 @@ def _parse_args():
     parser.add_argument("--icon-lookup", type=config_path, default=None,
                         help="A json file mapping role IDs to icon URLs or paths, "
                              "used for roles that do not specify an image.")
+    parser.add_argument("--language", type=str, default=None, metavar="CODE",
+                        help="Fill official characters with text from TPI's translations in this language (for example "
+                             "'fr' or 'de'), rather than English. Text your script spells out is kept as written. "
+                             "See https://translation.botc.app/ for the available languages.")
     parser.add_argument("--grid", action="store_true",
                         help="Use a grid layout instead of close packing.")
     return parse_args_with_config(parser, "create", sys.argv[2:])
@@ -200,8 +204,8 @@ def _load_roles(args) -> tuple[ParsedScript, ScriptSource] | None:
     return parsed, source
 
 
-def _resolve_official(roles: list[Role], lookup: dict[str, str]) -> list[Role]:
-    """Fill roles from the official data, assign lookup icons, and finalize them.
+def _resolve_official(roles: list[Role], lookup: dict[str, str], language: str | None = None) -> list[Role]:
+    """Fill roles from the official data (translated into the language, if any), assign lookup icons, and finalize them.
 
     Bare references that are not official roles are reported and dropped. Raises OfficialDataError if the official
     data is needed but cannot be loaded.
@@ -209,7 +213,7 @@ def _resolve_official(roles: list[Role], lookup: dict[str, str]) -> list[Role]:
     known_ids = official_ids()
     official = None
     if needs_official_data(roles, known_ids):
-        official = OfficialData()
+        official = OfficialData(language=language)
         official.load()
     resolved = []
     for role in roles:
@@ -317,7 +321,7 @@ def _create(
 
         progress.phase("Resolving roles...")
         try:
-            roles = _resolve_official(parsed.roles, lookup)
+            roles = _resolve_official(parsed.roles, lookup, args.language)
         except OfficialDataError as e:
             print(f"[red]Error:[/] {escape(str(e))}")
             return 1

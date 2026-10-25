@@ -1,0 +1,22 @@
+{
+  "editions": {"tb": {"name": "Trouble Brewing"}},
+  "jinxes": {},
+  "reminders": {
+    "townsfolk": "Villageois",
+    "isthedrunk": "Est l'Ivrogne",
+    "dead": "Mort"
+  },
+  "roles": {
+    "washerwoman": {
+      "ability": "Lors de votre première nuit, vous apprenez un rôle de Villageois en jeu parmi 2 joueurs.",
+      "name": "Lavandière",
+      "first": "Montrez le jeton de rôle du Villageois."
+    },
+    "drunk": {
+      "name": "Ivrogne"
+    },
+    "dusk": {
+      "name": "Crépuscule"
+    }
+  }
+}

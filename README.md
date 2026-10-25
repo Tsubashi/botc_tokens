@@ -166,6 +166,30 @@ homebrew character with the same ID, whichever icon was cached first is reused. 
 `image` URL will not refresh an icon that is already cached. To refresh an icon, delete `icons/<role_id>.png` from the
 `-m` folder (or run once without `--incremental`).
 
+### Other languages
+
+The Pandemonium Institute publishes official translations of the character text, and `create` can use them to fill in
+the official characters on your script:
+
+```bash
+botc_tokens create script.json -o printables --language fr
+```
+
+This only affects characters your script leaves to the official data: bare IDs like `"washerwoman"`, or partial
+entries that leave out the name, ability, or reminders. Those gaps are filled with the translated name, ability text,
+and reminder tokens. Anything your script spells out is kept exactly as written, so a fully custom script comes out the
+same with or without `--language`. Codes are the ones used at [translation.botc.app](https://translation.botc.app/)
+(`de`, `es`, `fr`, `pl`, and so on). Languages that are only partly translated there fall back to English for the
+missing pieces.
+
+**Font caveat:** the built-in fonts only carry Western European characters. French, German, Spanish, and the Nordic
+languages print fine, but languages such as Polish, Czech, Hungarian, Turkish, Russian, Japanese, or Chinese need
+fonts with those characters. ImageMagick draws missing characters as blanks or boxes without complaining, so check a
+token before printing a whole sheet. See [Custom components](#custom-components) for how to swap in your own fonts.
+
+**Caching caveat:** `--incremental` reuses any token image already in the `-m` folder, so switch to a fresh folder (or
+run once without `--incremental`) when changing languages.
+
 ### Custom components
 
 The pieces that make up the token art (backgrounds, leaves, fonts) are grouped together in what we call a component pack. You can make your own to customize your tokens. To start from the built-in one, dump it, edit the files, and pass the folder (or a zip of it) back in:
