@@ -4,6 +4,7 @@ from unittest.mock import patch
 import testhelpers
 
 from botc_tokens.__main__ import allowed_commands, main as botc_tokens_main
+from botc_tokens.helpers.config import COMMAND_SECTIONS
 
 
 def _run_main_cmd(arg_list, expected_exit=0):
@@ -49,3 +50,8 @@ def test_failing_command_exit_code(capsys):
     with patch.dict(allowed_commands, {"boom": (lambda: 1, "always fails")}):
         _run_main_cmd(["boom"], expected_exit=1)
     assert "Done!" not in capsys.readouterr().out
+
+
+def test_config_sections_match_commands():
+    """Every command except version has a config section, and nothing else does."""
+    assert set(allowed_commands) - {"version"} == COMMAND_SECTIONS

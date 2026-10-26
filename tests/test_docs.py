@@ -3,6 +3,9 @@
 from pathlib import Path
 import re
 
+# Application Specific
+from botc_tokens.helpers.config import COMMAND_SECTIONS, CONFIG_FILENAME
+
 REPO_ROOT = Path(__file__).parent.parent
 
 
@@ -12,3 +15,13 @@ def test_readme_python_version_matches_pyproject():
     minimum = re.search(r'requires-python\s*=\s*">=([\d.]+)"', pyproject).group(1)
     readme = " ".join((REPO_ROOT / "README.md").read_text(encoding="utf-8").split())
     assert f"Python {minimum} or newer" in readme
+
+
+def test_readme_documents_config_files():
+    """The README names the config file, every command section, and the global locations."""
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    assert "### Config files" in readme
+    assert CONFIG_FILENAME in readme
+    for section in COMMAND_SECTIONS:
+        assert f"[{section}]" in readme
+    assert "XDG_CONFIG_HOME" in readme and "APPDATA" in readme

@@ -104,6 +104,48 @@ botc_tokens create script.json -o printables --paper-size 215.9 279.4 --margin-h
 Change the size of the tokens with `--role-diameter` and `--reminder-diameter`, or adjust the layout with
 `--margin-horizontal`, `--margin-vertical`, `--padding`, `--grid`. You can even ditch much of the token text with the aptly named `--skip-ability-text`.
 
+If you always print on the same paper, put the choice in a config file (see [Config files](#config-files)) instead of typing it every time.
+
+### Config files
+
+Any `--option` of any command can be given a default in a `botc_tokens.conf` file, so you don't have to retype the
+same flags on every run. Values are applied in this order, later ones winning:
+
+1. The built-in defaults.
+2. The global config file, which applies to every run:
+   - Linux and macOS: `$XDG_CONFIG_HOME/botc_tokens/botc_tokens.conf`, which is `~/.config/botc_tokens/botc_tokens.conf` unless you have set `XDG_CONFIG_HOME`.
+   - Windows: `%APPDATA%\botc_tokens\botc_tokens.conf`, typically `C:\Users\<you>\AppData\Roaming\botc_tokens\botc_tokens.conf`.
+3. The local config file: the nearest `botc_tokens.conf` in the current directory or any of its parent directories. Only the nearest one is used.
+4. The arguments you actually pass on the command line.
+
+The file is in INI format, with one section per command and one key per option. Keys are the option's long name
+without the leading `--`:
+
+```ini
+[create]
+intermediate-dir = work
+paper-type = a4
+grid = true
+
+[migrate]
+input = old_inputs
+
+[pad-icons]
+in-place = true
+
+[dump]
+# dump has no options yet; the section is accepted but empty
+```
+
+A few rules:
+
+- Flags such as `--grid` take `true` or `false`. A flag turned on in a config file cannot be turned off from the command line, since there are no `--no-grid` style options.
+- Options that take several values, such as `--paper-size`, take them separated by spaces: `paper-size = 215.9 279.4`.
+- Paths such as `intermediate-dir` or `components` are relative to the directory holding the config file, not to where you run the command. `~` is expanded.
+- Positional arguments like the script path cannot be set from a config file.
+- A section or key that isn't a command or option, or a value the option would reject on the command line, stops the run with an error naming the file, section, and key.
+- Each run prints `Using config:` followed by the files it read, so a surprising default is easy to trace. `--help` ignores config files entirely.
+
 ### Keeping intermediate files and caching
 
 When we create the printables, we first have to fetch the icons and generate individual token images. If you use the default args, these get thrown away once the PDFs are made. You can pass `-m` to keep them:

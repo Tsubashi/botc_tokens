@@ -11,20 +11,22 @@ from rich.markup import escape
 
 # Application Specific
 from .. import data_dir
+from ..helpers.config import config_epilog, parse_args_with_config
 from ..helpers.token_components import TokenComponents
 
 
 def _parse_args():
     parser = argparse.ArgumentParser(
         prog="botc_tokens dump",
-        description="Write the built-in defaults to a directory so they can be customized and passed back in.")
+        description="Write the built-in defaults to a directory so they can be customized and passed back in.",
+        epilog=config_epilog())
     parser.add_argument('what', type=str, choices=["components", "duplicates", "icon-lookup", "all"],
                         help="Which defaults to write. 'components' writes the token component pack, 'duplicates' "
                              "writes duplicates.json, 'icon-lookup' writes icon_lookup.json, 'all' writes "
                              "everything.")
     parser.add_argument('output_dir', type=str, default="botc_tokens_defaults", nargs="?",
                         help='The directory in which to write the files. (Default: "botc_tokens_defaults")')
-    return parser.parse_args(sys.argv[2:])
+    return parse_args_with_config(parser, "dump", sys.argv[2:])
 
 
 def _dump_components(target_dir):

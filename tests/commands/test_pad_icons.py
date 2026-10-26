@@ -96,3 +96,10 @@ def test_not_a_directory(tmp_path, capsys):
     """A path that is not a directory is an error."""
     assert _run_cmd([str(tmp_path / "missing")]) == 1
     assert "Error" in capsys.readouterr().out
+
+
+def test_pad_icons_in_place_from_config(input_dir, isolated_config):
+    """The in-place flag can be turned on from a config file."""
+    (isolated_config.cwd / "botc_tokens.conf").write_text("[pad-icons]\nin-place = true\n")
+    assert _run_cmd([str(input_dir)]) == 0
+    assert not list(input_dir.glob("*_padded*"))

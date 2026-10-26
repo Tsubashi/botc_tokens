@@ -12,6 +12,7 @@ from wand.exceptions import WandException
 from wand.image import Image
 
 # Application Specific
+from ..helpers.config import config_epilog, config_path, parse_args_with_config
 from ..helpers.role import normalize_id
 from ..helpers.text_tools import format_filename
 
@@ -19,12 +20,13 @@ from ..helpers.text_tools import format_filename
 def _parse_args():
     parser = argparse.ArgumentParser(
         prog="botc_tokens migrate",
-        description="Convert old directory structures to the new format.")
-    parser.add_argument('-i', '--input', type=str, required=True, dest="input_dir",
+        description="Convert old directory structures to the new format.",
+        epilog=config_epilog())
+    parser.add_argument('-i', '--input', type=config_path, required=True, dest="input_dir",
                         help="The old directory to convert.")
     parser.add_argument('output_dir', type=str, default=".", nargs="?",
                         help='The directory in which to output the new JSON and intermediates. (Default: ".")')
-    return parser.parse_args(sys.argv[2:])
+    return parse_args_with_config(parser, "migrate", sys.argv[2:])
 
 
 def find_scripts(input_dir: Path) -> list[tuple[str, list[Path]]]:
