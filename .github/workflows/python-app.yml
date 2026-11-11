@@ -36,9 +36,13 @@ jobs:
         flake8 . --count --statistics
     - name: Change ImageMagick policy to allow pdf->png conversion.
       run: |
+        i=0
         for policy in /etc/ImageMagick-*/policy.xml; do
+          echo "Processing $policy"
           if [ -f "$policy" ]; then sudo sed -i '/policy.*coder.*none.*PDF/d' "$policy"; fi
+          i=$((i+1))
         done
+        echo "Processed $i policy files."
     - name: Test with pytest
       run: |
         pytest --cov botc_tokens --cov-report term-missing --cov-fail-under=100
