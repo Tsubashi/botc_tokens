@@ -65,17 +65,18 @@ def _close_packing(layout: SheetLayout, label: str, diameter: int) -> bool:
 
 
 def build_sheets(
-        roles: list[Role],
-        tokens_dir: Path,
+        groups: list[tuple[list[Role], Path]],
         output_dir: Path,
         layout: SheetLayout,
         duplicates: dict[str, int]
 ) -> tuple[int, int]:
     """Place role and reminder tokens in script order and write roles.pdf and reminders.pdf.
 
+    Each group is one script. Groups share the sheets, following one another without a page break, so several
+    scripts fill the paper together.
+
     Args:
-        roles: The finalized roles, in script order.
-        tokens_dir: The directory containing the token images.
+        groups: For each script, its finalized roles in script order and the directory containing their token images.
         output_dir: The directory to write the PDFs to.
         layout: The page layout.
         duplicates: The number of copies of each role token, keyed by normalized id.
@@ -101,27 +102,44 @@ def build_sheets(
                                close_packing=_close_packing(layout, "reminder", layout.reminder_diameter), **common)
     role_count = 0
     reminder_count = 0
-    reminders_placed: set[str] = set()
     try:
-        for role in roles:
-            role_file = tokens_dir / f"{role.slug}.png"
-            if role_file.exists():
-                for _ in range(duplicates.get(role.normalized_id, 1)):
-                    role_sheet.add_token(role_file)
-                    role_count += 1
-            else:
-                print(f"[yellow]Warning:[/] No token found for {escape(role.id)}; skipping.")
-            if role.slug in reminders_placed:  # Reminder tokens are placed once per role, however often it is listed
-                continue
-            reminders_placed.add(role.slug)
-            for number in range(1, len(role.reminders) + 1):
-                reminder_file = tokens_dir / f"{role.slug}-reminder-{number}.png"
-                if reminder_file.exists():
-                    reminder_sheet.add_token(reminder_file)
-                    reminder_count += 1
+        for roles, tokens_dir in groups:
+            placed = _place_script(roles, tokens_dir, role_sheet, reminder_sheet, duplicates)
+            role_count += placed[0]
+            reminder_count += placed[1]
         role_sheet.write()
         reminder_sheet.write()
     finally:
         role_sheet.close()
         reminder_sheet.close()
+    return role_count, reminder_count
+
+
+def _place_script(
+        roles: list[Role],
+        tokens_dir: Path,
+        role_sheet: Printable,
+        reminder_sheet: Printable,
+        duplicates: dict[str, int]
+) -> tuple[int, int]:
+    """Add one script's tokens to the sheets, returning the number of role tokens and reminder tokens placed."""
+    role_count = 0
+    reminder_count = 0
+    reminders_placed: set[str] = set()
+    for role in roles:
+        role_file = tokens_dir / f"{role.slug}.png"
+        if role_file.exists():
+            for _ in range(duplicates.get(role.normalized_id, 1)):
+                role_sheet.add_token(role_file)
+                role_count += 1
+        else:
+            print(f"[yellow]Warning:[/] No token found for {escape(role.id)}; skipping.")
+        if role.slug in reminders_placed:  # Reminder tokens are placed once per role, however often a script lists it
+            continue
+        reminders_placed.add(role.slug)
+        for number in range(1, len(role.reminders) + 1):
+            reminder_file = tokens_dir / f"{role.slug}-reminder-{number}.png"
+            if reminder_file.exists():
+                reminder_sheet.add_token(reminder_file)
+                reminder_count += 1
     return role_count, reminder_count

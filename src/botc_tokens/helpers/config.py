@@ -226,7 +226,7 @@ def _cli_given_group_members(parser: argparse.ArgumentParser, argv: list[str]) -
     for action in actions:
         action.default = sentinel
     try:
-        namespace = parser.parse_args(argv)
+        namespace = parser.parse_intermixed_args(argv)
     finally:
         for action, default in zip(actions, saved):
             action.default = default
@@ -239,9 +239,12 @@ def _is_help_flag(arg: str) -> bool:
 
 
 def parse_args_with_config(parser: argparse.ArgumentParser, command: str, argv: list[str]) -> argparse.Namespace:
-    """Parse `argv` with the parser's defaults replaced by the values the config files set for `command`."""
+    """Parse `argv` with the parser's defaults replaced by the values the config files set for `command`.
+
+    Options and positional arguments may be mixed freely, so `create a.json -c pack_a b.json -c pack_b` works.
+    """
     if any(_is_help_flag(arg) for arg in argv):
-        return parser.parse_args(argv)
+        return parser.parse_intermixed_args(argv)
     _option_actions(parser)  # Reject unsupported option kinds even when no config file exists.
     try:
         paths = config_file_paths()
@@ -257,7 +260,7 @@ def parse_args_with_config(parser: argparse.ArgumentParser, command: str, argv: 
     if parser._mutually_exclusive_groups:
         _drop_groups_given_on_cli(parser, argv, merged)
     parser.set_defaults(**merged)
-    return parser.parse_args(argv)
+    return parser.parse_intermixed_args(argv)
 
 
 def _relax_required(parser: argparse.ArgumentParser, merged: dict[str, object]) -> None:

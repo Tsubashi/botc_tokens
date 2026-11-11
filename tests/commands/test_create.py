@@ -8,6 +8,8 @@ from urllib.error import URLError
 # Third Party
 from pypdf import PdfReader
 import pytest
+from wand.color import Color
+from wand.image import Image
 
 # Application Specific
 from botc_tokens.commands import create
@@ -524,3 +526,175 @@ def test_create_language_without_official_roles_skips_fetch(tmp_path, web, solo_
     """A fully homebrew script never needs the translation file, even with --language."""
     assert _run_cmd(["-o", str(tmp_path / "out"), "--language", "xx", solo_script]) == 0
     assert not any("botc-translations" in url for url in web.calls)
+
+
+def _signature(path):
+    """Return a hash of an image's pixels."""
+    with Image(filename=str(path)) as image:
+        return image.signature
+
+
+def test_create_several_scripts_share_sheets(tmp_path, web, solo_script, capsys):
+    """Several scripts are rendered into their own token folders and placed together on one set of sheets."""
+    out = tmp_path / "out"
+    cache = tmp_path / "cache"
+    other = _write_script(tmp_path / "other.json", [_solo("two", "https://example.test/two.png")])
+
+    assert _run_cmd(["-o", str(out), "-m", str(cache), solo_script, other]) == 0
+
+    assert (cache / "tokens_solo" / "solo.png").is_file()
+    assert (cache / "tokens_other" / "two.png").is_file()
+    assert len(PdfReader(out / "roles.pdf").pages) == 1
+    output = _output(capsys)
+    assert "Script 1 of 2:" in output
+    assert "Script 2 of 2:" in output
+    assert "Created 2 role tokens and 0 reminder tokens; skipped 0 roles." in output
+
+
+def test_create_single_script_prints_no_script_heading(tmp_path, web, solo_script, capsys):
+    """A run with one script does not print the per-script heading."""
+    assert _run_cmd(["-o", str(tmp_path / "out"), solo_script]) == 0
+
+    assert "Script 1 of" not in _output(capsys)
+
+
+def test_create_components_per_script(tmp_path, web, solo_script, component_package, capsys):
+    """One --components per script gives each script its own pack, and 'default' picks the built-in one."""
+    cache = tmp_path / "cache"
+    with Image(width=64, height=64, background=Color("red")) as background:
+        background.save(filename=str(component_package / "TokenBG.png"))
+    (component_package / "Leaf1.png").unlink()
+    same_role = _write_script(tmp_path / "custom.json", [_solo()])
+
+    assert _run_cmd([
+        "-o", str(tmp_path / "out"), "-m", str(cache), solo_script, same_role,
+        "-c", "default", "-c", str(component_package),
+    ]) == 0
+
+    default_token = cache / "tokens_solo" / "solo.png"
+    custom_token = cache / "tokens_custom" / "solo.png"
+    assert _signature(default_token) != _signature(custom_token)
+    output = _output(capsys)
+    assert f"'{component_package}' is using built-in components for: Leaf1.png" in output
+    assert "Created 2 role tokens" in output  # The role both scripts share is printed for each
+
+
+def test_create_one_components_applies_to_every_script(tmp_path, web, solo_script, component_package):
+    """A single --components is used for all the scripts."""
+    cache = tmp_path / "cache"
+    with Image(width=64, height=64, background=Color("red")) as background:
+        background.save(filename=str(component_package / "TokenBG.png"))
+    same_role = _write_script(tmp_path / "custom.json", [_solo()])
+
+    assert _run_cmd([
+        "-o", str(tmp_path / "out"), "-m", str(cache), "-c", str(component_package), solo_script, same_role
+    ]) == 0
+
+    assert _signature(cache / "tokens_solo" / "solo.png") == _signature(cache / "tokens_custom" / "solo.png")
+
+
+def test_create_components_count_mismatch_exits_1(tmp_path, web, solo_script, component_package, capsys):
+    """A number of --components that is neither one nor the number of scripts is fatal before anything is fetched."""
+    pack = str(component_package)
+
+    assert _run_cmd(["-o", str(tmp_path / "out"), "-c", pack, "-c", pack, solo_script, solo_script, solo_script]) == 1
+
+    assert "Got 2 --components for 3 scripts" in _output(capsys)
+    assert web.calls == []
+
+
+def test_create_cli_components_replace_config_components(tmp_path, isolated_config, web, solo_script):
+    """--components on the command line replaces the config file's pack instead of adding to it."""
+    (isolated_config.cwd / "botc_tokens.conf").write_text("[create]\ncomponents = missing_pack\n")
+
+    assert _run_cmd(["-o", str(tmp_path / "out"), solo_script]) == 1
+    assert _run_cmd(["-o", str(tmp_path / "out"), "-c", "default", solo_script]) == 0
+
+
+def test_create_config_components_apply_to_every_script(
+        tmp_path, isolated_config, web, solo_script, component_package, capsys
+):
+    """A pack named in a config file is used for all the scripts."""
+    (component_package / "Leaf1.png").unlink()
+    (isolated_config.cwd / "botc_tokens.conf").write_text(f"[create]\ncomponents = {component_package}\n")
+
+    assert _run_cmd(["-o", str(tmp_path / "out"), solo_script, solo_script]) == 0
+
+    assert _output(capsys).count("Using built-in components for: Leaf1.png") == 1
+
+
+def test_create_same_named_scripts_get_separate_token_dirs(tmp_path, web, solo_script):
+    """Scripts that resolve to the same name are numbered so their tokens do not overwrite each other."""
+    cache = tmp_path / "cache"
+
+    assert _run_cmd(["-o", str(tmp_path / "out"), "-m", str(cache), solo_script, solo_script, solo_script]) == 0
+
+    for name in ("tokens_solo", "tokens_solo_2", "tokens_solo_3"):
+        assert (cache / name / "solo.png").is_file()
+
+
+def test_create_bad_later_script_stops_before_rendering(tmp_path, web, solo_script, capsys):
+    """A script that cannot be read stops the run before any icon is fetched or sheet written, and is named."""
+    out = tmp_path / "out"
+    not_a_script = _write_script(tmp_path / "object.json", {})
+
+    assert _run_cmd(["-o", str(out), solo_script, not_a_script]) == 1
+
+    output = _output(capsys)
+    assert f"{not_a_script}: Unrecognized script format" in output
+    assert web.calls == []
+    assert not (out / "roles.pdf").exists()
+
+
+def test_create_later_script_without_roles_writes_no_sheets(tmp_path, web, solo_script, capsys):
+    """A later script with no usable roles stops the run without sheets, naming the script."""
+    out = tmp_path / "out"
+    empty = _write_script(tmp_path / "empty.json", ["notarole"])
+
+    assert _run_cmd(["-o", str(out), solo_script, empty]) == 1
+
+    assert f"No roles left to create tokens for in {empty}" in _output(capsys)
+    assert not (out / "roles.pdf").exists()
+
+
+def test_create_scripts_and_components_can_be_interleaved(tmp_path, web, solo_script, component_package, capsys):
+    """Each --components may follow its script; packs are still matched to the scripts by order."""
+    cache = tmp_path / "cache"
+    (component_package / "Leaf1.png").unlink()
+    other = _write_script(tmp_path / "other.json", [_solo()])
+
+    assert _run_cmd([
+        solo_script, "-c", "default", other, "-c", str(component_package), "-o", str(tmp_path / "out"), "-m", str(cache)
+    ]) == 0
+
+    assert (cache / "tokens_solo" / "solo.png").is_file()
+    assert (cache / "tokens_other" / "solo.png").is_file()
+    assert f"'{component_package}' is using built-in components for: Leaf1.png" in _output(capsys)
+
+
+def test_create_script_names_differing_only_by_case_get_separate_token_dirs(tmp_path, web):
+    """Names that differ only by case would be one directory on some filesystems, so the later one is numbered."""
+    cache = tmp_path / "cache"
+    upper = _write_script(tmp_path / "upper.json", [{"id": "_meta", "name": "Homebrew"}, _solo()])
+    lower = _write_script(tmp_path / "lower.json", [{"id": "_meta", "name": "homebrew"}, _solo()])
+
+    assert _run_cmd(["-o", str(tmp_path / "out"), "-m", str(cache), upper, lower]) == 0
+
+    assert sorted(path.name for path in cache.iterdir()) == ["icons", "tokens_Homebrew", "tokens_homebrew_2"]
+
+
+def test_create_incremental_does_not_share_icons_between_scripts_in_one_run(tmp_path, web, test_data_dir, solo_script):
+    """With --incremental, a later script's role with the same id but different art still gets its own icon."""
+    cache = tmp_path / "cache"
+    web.routes["https://example.test/two.png"] = (test_data_dir / "icons" / "1.png").read_bytes()
+    other_art = _write_script(tmp_path / "other.json", [_solo(image="https://example.test/two.png")])
+    same_art = _write_script(tmp_path / "same.json", [_solo()])
+
+    assert _run_cmd([
+        "-o", str(tmp_path / "out"), "-m", str(cache), "--incremental", solo_script, same_art, other_art
+    ]) == 0
+
+    assert web.calls.count(SOLO_ICON_URL) == 1  # The second script shares the first one's artwork, so it is reused
+    assert "https://example.test/two.png" in web.calls
+    assert _signature(cache / "tokens_solo" / "solo.png") == _signature(cache / "tokens_same" / "solo.png")
+    assert _signature(cache / "tokens_solo" / "solo.png") != _signature(cache / "tokens_other" / "solo.png")

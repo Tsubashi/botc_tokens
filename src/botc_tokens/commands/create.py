@@ -1,4 +1,4 @@
-"""Create print-n-play sheets from a script JSON."""
+"""Create print-n-play sheets from one or more script JSONs."""
 # Standard Library
 import argparse
 from contextlib import nullcontext
@@ -36,6 +36,7 @@ DEFAULT_MARGIN_MM = 6.27
 DEFAULT_PADDING_MM = 0.0
 DEFAULT_PAPER_TYPE = "letter"
 MAX_OPTION_VALUE = 1_000_000
+BUILT_IN_COMPONENTS = "default"  # What to pass to --components to pick the built-in pack for one script
 
 
 def _checked_number(text: str, convert, allow_zero: bool):
@@ -66,16 +67,28 @@ def _non_negative_float(text: str) -> float:
     return _checked_number(text, float, allow_zero=True)
 
 
+class _ReplacingAppendAction(argparse._StoreAction):
+    """Collect a repeatable option into a list that replaces, rather than extends, a config file default."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        """Start a fresh list the first time the option is given, then add to it."""
+        collected = getattr(namespace, self.dest)
+        if not isinstance(collected, list):  # Still the default, which is None or a single config file value
+            collected = []
+            setattr(namespace, self.dest, collected)
+        collected.append(values)
+
+
 def _parse_args():
     """Parse the command line arguments."""
     parser = argparse.ArgumentParser(
         prog="botc_tokens create",
-        usage="%(prog)s [OPTIONS LISTED BELOW] [script_path_or_URL]",
-        description="Create print-n-play sheets from a script JSON.",
+        usage="%(prog)s [OPTIONS LISTED BELOW] script_path_or_URL [script_path_or_URL ...]",
+        description="Create print-n-play sheets from one or more script JSONs.",
         epilog=config_epilog())
-    parser.add_argument("script", metavar="script_path_or_URL", type=str,
+    parser.add_argument("script", metavar="script_path_or_URL", type=str, nargs="+",
                         help="The location of the script JSON for which to create the print-n-play sheets. "
-                             "Can be a file path or a URL.")
+                             "Can be a file path or a URL. Give several to print them together on the same sheets.")
     parser.add_argument("-o", "--output-dir", type=config_path, default=".",
                         help="Where to save the print-n-play sheets. (Default: '.')")
     parser.add_argument("-m", "--intermediate-dir", type=config_path, default=None,
@@ -85,8 +98,10 @@ def _parse_args():
     parser.add_argument("--incremental", action="store_true",
                         help="Don't overwrite existing tokens in the intermediate dir. "
                              "No effect if -m is not specified.")
-    parser.add_argument("-c", "--components", type=config_path, default=None,
-                        help="The directory or zip in which to find the token components. (leaves, backgrounds, etc.)")
+    parser.add_argument("-c", "--components", type=config_path, default=None, action=_ReplacingAppendAction,
+                        help="The directory or zip in which to find the token components. (leaves, backgrounds, etc.) "
+                             "Give it once to use it for every script, or once per script, in the same order as the "
+                             f"scripts, to give each its own. '{BUILT_IN_COMPONENTS}' picks the built-in components.")
     parser.add_argument("--dpi", type=_positive_int, default=DEFAULT_DPI,
                         help="The DPI to use for distance-to-pixel calculations, such as token diameters. "
                              f"(Default: {DEFAULT_DPI})")
@@ -181,7 +196,21 @@ def _load_overrides(args) -> tuple[dict[str, int], dict[str, str]] | None:
     return None
 
 
-def _load_components(component_package: str | None) -> TokenComponents | None:
+def _components_per_script(args) -> list[str | None] | None:
+    """Match a component pack (None for the built-in one) to each script, or report the problem and return None."""
+    given = args.components
+    packs = [given] if isinstance(given, str) else list(given or [None])  # A config file gives a single string
+    packs = [None if pack == BUILT_IN_COMPONENTS else pack for pack in packs]
+    if len(packs) == 1:
+        return packs * len(args.script)
+    if len(packs) != len(args.script):
+        print(f"[red]Error:[/] Got {len(packs)} --components for {len(args.script)} scripts; "
+              "give one for all of them, or one for each.")
+        return None
+    return packs
+
+
+def _load_components(component_package: str | None, name_pack: bool = False) -> TokenComponents | None:
     """Load the token components, or report the problem and return None."""
     try:
         components = TokenComponents(component_package)
@@ -189,19 +218,55 @@ def _load_components(component_package: str | None) -> TokenComponents | None:
         print(f"[red]Error:[/] Unable to load components from '{escape(str(component_package))}': {escape(str(e))}")
         return None
     if components.fallbacks:
-        print(f"Using built-in components for: {escape(', '.join(components.fallbacks))}")
+        who = f"'{escape(str(component_package))}' is using" if name_pack else "Using"
+        print(f"{who} built-in components for: {escape(', '.join(components.fallbacks))}")
     return components
 
 
-def _load_roles(args) -> tuple[ParsedScript, ScriptSource] | None:
-    """Load and parse the script, or report the problem and return None."""
-    try:
-        source = load_script_source(args.script)
-        parsed = parse_script(source)
-    except ScriptError as e:
-        print(f"[red]Error:[/] {escape(str(e))}")
-        return None
-    return parsed, source
+def _load_all_components(
+        packs: list[str | None], loaded: dict[str | None, TokenComponents]
+) -> list[TokenComponents] | None:
+    """Load each distinct pack once into `loaded`, returning the components for each script or None on failure."""
+    name_pack = len(set(packs)) > 1
+    for pack in packs:
+        if pack not in loaded:
+            components = _load_components(pack, name_pack)
+            if components is None:
+                return None
+            loaded[pack] = components
+    return [loaded[pack] for pack in packs]
+
+
+def _load_scripts(scripts: list[str]) -> list[tuple[ParsedScript, ScriptSource]] | None:
+    """Load and parse every script, or report the first problem and return None."""
+    loaded = []
+    for script in scripts:
+        try:
+            source = load_script_source(script)
+            loaded.append((parse_script(source), source))
+        except ScriptError as e:
+            message = str(e)
+            if script not in message:
+                message = f"{script}: {message}"
+            print(f"[red]Error:[/] {escape(message)}")
+            return None
+    return loaded
+
+
+def _token_dir_names(loaded: list[tuple[ParsedScript, ScriptSource]]) -> list[str]:
+    """Name a token directory for each script, numbering repeats of a name so no two scripts share one."""
+    names: list[str] = []
+    taken: set[str] = set()  # Case-folded, since "Script" and "script" are one directory on macOS and Windows
+    for parsed, source in loaded:
+        base = f"tokens_{script_slug(parsed, source)}"
+        name = base
+        number = 1
+        while name.casefold() in taken:
+            number += 1
+            name = f"{base}_{number}"
+        taken.add(name.casefold())
+        names.append(name)
+    return names
 
 
 def _resolve_official(roles: list[Role], lookup: dict[str, str], language: str | None = None) -> list[Role]:
@@ -276,9 +341,14 @@ def _make_tokens(
         icons_dir: Path,
         tokens_dir: Path,
         args,
-        progress: _Progress
+        progress: _Progress,
+        acquired: dict[str, str | None]
 ) -> int:
-    """Acquire icons and render the tokens for each distinct role, returning how many token files were written."""
+    """Acquire icons and render the tokens for each distinct role, returning how many token files were written.
+
+    `acquired` maps the slug of each icon already acquired in this run to its source. It is updated here, and keeps a
+    script from reusing an earlier script's icon for a role that shares an id but not the artwork.
+    """
     unique: dict[str, Role] = {}
     for role in roles:
         unique.setdefault(role.slug, role)
@@ -287,7 +357,9 @@ def _make_tokens(
     icons: dict[str, Path | None] = {}
     for slug, role in unique.items():
         progress.step(f"Getting icon for {escape(role.name or role.id)}")
-        icons[slug] = acquire_icon(role, icons_dir, args.incremental)
+        reuse = args.incremental and acquired.get(slug, role.icon) == role.icon
+        icons[slug] = acquire_icon(role, icons_dir, reuse)
+        acquired[slug] = role.icon
         if icons[slug] is None:
             print(f"[yellow]Warning:[/] {escape(role.name or role.id)} has no icon; "
                   "creating its tokens without one.")
@@ -307,43 +379,50 @@ def _create(
         layout: SheetLayout,
         duplicates: dict[str, int],
         lookup: dict[str, str],
-        components: TokenComponents,
+        components: list[TokenComponents],
         intermediate: Path
 ) -> int:
-    """Run the pipeline from script to sheets, returning the exit code."""
+    """Run the pipeline from scripts to sheets, returning the exit code."""
     progress = _Progress()
     with Live(progress.group):
-        progress.phase("Reading script...")
-        loaded = _load_roles(args)
+        progress.phase("Reading scripts...")
+        loaded = _load_scripts(args.script)
         if loaded is None:
-            return 1
-        parsed, source = loaded
-
-        progress.phase("Resolving roles...")
-        try:
-            roles = _resolve_official(parsed.roles, lookup, args.language)
-        except OfficialDataError as e:
-            print(f"[red]Error:[/] {escape(str(e))}")
-            return 1
-        skipped = len(parsed.roles) - len(roles)
-        if not roles:
-            print("[red]Error:[/] No roles left to create tokens for.")
             return 1
 
         icons_dir = intermediate / "icons"
-        tokens_dir = intermediate / f"tokens_{script_slug(parsed, source)}"
         icons_dir.mkdir(parents=True, exist_ok=True)
-        tokens_dir.mkdir(parents=True, exist_ok=True)
-        _make_tokens(roles, components, icons_dir, tokens_dir, args, progress)
+        groups: list[tuple[list[Role], Path]] = []
+        acquired: dict[str, str | None] = {}
+        skipped = 0
+        for number, ((parsed, _), dir_name) in enumerate(zip(loaded, _token_dir_names(loaded))):
+            script = args.script[number]
+            if len(loaded) > 1:  # Lets the warnings that follow be traced to their script
+                print(f"[bold]Script {number + 1} of {len(loaded)}:[/] {escape(script)}")
+            progress.phase("Resolving roles...")
+            try:
+                roles = _resolve_official(parsed.roles, lookup, args.language)
+            except OfficialDataError as e:
+                print(f"[red]Error:[/] {escape(str(e))}")
+                return 1
+            skipped += len(parsed.roles) - len(roles)
+            if not roles:
+                print(f"[red]Error:[/] No roles left to create tokens for in {escape(script)}.")
+                return 1
+
+            tokens_dir = intermediate / dir_name
+            tokens_dir.mkdir(parents=True, exist_ok=True)
+            _make_tokens(roles, components[number], icons_dir, tokens_dir, args, progress, acquired)
+            groups.append((roles, tokens_dir))
 
         progress.phase("Laying out sheets...")
-        role_count, reminder_count = build_sheets(roles, tokens_dir, Path(args.output_dir), layout, duplicates)
+        role_count, reminder_count = build_sheets(groups, Path(args.output_dir), layout, duplicates)
     print(f"[green]Created {role_count} role tokens and {reminder_count} reminder tokens; skipped {skipped} roles.[/]")
     return 0
 
 
 def run() -> int:
-    """Create print-n-play sheets from a script JSON."""
+    """Create print-n-play sheets from one or more script JSONs."""
     args = _parse_args()
     output_dir = Path(args.output_dir)
     if output_dir.exists() and not output_dir.is_dir():
@@ -359,10 +438,14 @@ def run() -> int:
     if overrides is None:
         return 1
     duplicates, lookup = overrides
-    components = _load_components(args.components)
-    if components is None:
+    packs = _components_per_script(args)
+    if packs is None:
         return 1
+    loaded_packs: dict[str | None, TokenComponents] = {}
     try:
+        components = _load_all_components(packs, loaded_packs)
+        if components is None:
+            return 1
         intermediate = TemporaryDirectory() if args.intermediate_dir is None else nullcontext(args.intermediate_dir)
         with intermediate as intermediate_dir:
             return _create(args, layout, duplicates, lookup, components, Path(intermediate_dir))
@@ -370,4 +453,5 @@ def run() -> int:
         print(f"[red]Error:[/] {escape(str(e))}")
         return 1
     finally:
-        components.close()
+        for pack in loaded_packs.values():
+            pack.close()

@@ -43,7 +43,7 @@ def test_build_sheets_counts_and_files(tmp_path, tokens_dir):
     """Duplicates and reminders are counted and both PDFs are written."""
     roles = [_role("a"), _role("b", 2), _role("legion")]
     output = tmp_path / "out"
-    counts = build_sheets(roles, tokens_dir, output, _layout(), {"legion": 3})
+    counts = build_sheets([(roles, tokens_dir)], output, _layout(), {"legion": 3})
     assert counts == (5, 2)
     assert len(PdfReader(output / "roles.pdf").pages) == 1
     assert len(PdfReader(output / "reminders.pdf").pages) == 1
@@ -51,7 +51,7 @@ def test_build_sheets_counts_and_files(tmp_path, tokens_dir):
 
 def test_build_sheets_missing_token_warns(tmp_path, tokens_dir, capsys):
     """A role without a token file is skipped with a warning."""
-    counts = build_sheets([_role("a"), _role("ghost")], tokens_dir, tmp_path / "out", _layout(), {})
+    counts = build_sheets([([_role("a"), _role("ghost")], tokens_dir)], tmp_path / "out", _layout(), {})
     assert counts == (1, 0)
     assert "Warning:" in capsys.readouterr().out
 
@@ -59,14 +59,29 @@ def test_build_sheets_missing_token_warns(tmp_path, tokens_dir, capsys):
 def test_build_sheets_no_reminders_no_pdf(tmp_path, tokens_dir):
     """No reminder files means no reminders.pdf."""
     output = tmp_path / "out"
-    assert build_sheets([_role("a")], tokens_dir, output, _layout(), {}) == (1, 0)
+    assert build_sheets([([_role("a")], tokens_dir)], output, _layout(), {}) == (1, 0)
     assert (output / "roles.pdf").exists()
     assert not (output / "reminders.pdf").exists()
 
 
 def test_build_sheets_reminders_once_per_role(tmp_path, tokens_dir):
     """A role listed twice gets a role token per listing but its reminders only once."""
-    assert build_sheets([_role("b", 2), _role("b", 2)], tokens_dir, tmp_path / "out", _layout(), {}) == (2, 2)
+    assert build_sheets([([_role("b", 2), _role("b", 2)], tokens_dir)], tmp_path / "out", _layout(), {}) == (2, 2)
+
+
+def test_build_sheets_combines_scripts(tmp_path, tokens_dir, test_data_dir):
+    """Each script's tokens come from its own directory, land on shared sheets, and get their own reminders."""
+    other_dir = tmp_path / "other"
+    other_dir.mkdir()
+    for name in ("b", "b-reminder-1", "b-reminder-2"):
+        copy(test_data_dir / "icons" / "1.png", other_dir / f"{name}.png")
+    output = tmp_path / "out"
+    groups = [([_role("a"), _role("b", 2)], tokens_dir), ([_role("b", 2), _role("a")], other_dir)]
+
+    assert build_sheets(groups, output, _layout(), {}) == (3, 4)  # The second directory has no token for a
+
+    assert len(PdfReader(output / "roles.pdf").pages) == 1
+    assert len(PdfReader(output / "reminders.pdf").pages) == 1
 
 
 def test_build_sheets_removes_stale_pdfs(tmp_path, tokens_dir):
@@ -74,14 +89,14 @@ def test_build_sheets_removes_stale_pdfs(tmp_path, tokens_dir):
     output = tmp_path / "out"
     output.mkdir()
     (output / "reminders.pdf").write_text("stale")
-    assert build_sheets([_role("a")], tokens_dir, output, _layout(), {}) == (1, 0)
+    assert build_sheets([([_role("a")], tokens_dir)], output, _layout(), {}) == (1, 0)
     assert (output / "roles.pdf").exists()
     assert not (output / "reminders.pdf").exists()
 
 
 def test_build_sheets_markup_in_id_is_escaped(tmp_path, tokens_dir, capsys):
     """Rich markup in a role id is printed literally in the missing-token warning instead of raising."""
-    assert build_sheets([_role("[/x]")], tokens_dir, tmp_path / "out", _layout(), {}) == (0, 0)
+    assert build_sheets([([_role("[/x]")], tokens_dir)], tmp_path / "out", _layout(), {}) == (0, 0)
     assert "No token found for [/x]" in capsys.readouterr().out.replace("\n", "")
 
 
@@ -99,12 +114,12 @@ def test_build_sheets_narrow_page_uses_grid(tmp_path, tokens_dir, monkeypatch, c
 
     monkeypatch.setattr(sheet_builder, "Printable", SpyPrintable)
     layout = _layout(page_width=90)  # Inset role rows need 1.5 * 64 = 96px; reminder rows need 48px
-    assert build_sheets([_role("a"), _role("legion")], tokens_dir, tmp_path / "out", layout, {}) == (2, 0)
+    assert build_sheets([([_role("a"), _role("legion")], tokens_dir)], tmp_path / "out", layout, {}) == (2, 0)
     assert packing == {"roles": False, "reminders": True}
     assert "too narrow to close pack role tokens" in capsys.readouterr().out.replace("\n", "")
 
     packing.clear()
-    build_sheets([_role("a")], tokens_dir, tmp_path / "grid", _layout(page_width=90, close_packing=False), {})
+    build_sheets([([_role("a")], tokens_dir)], tmp_path / "grid", _layout(page_width=90, close_packing=False), {})
     assert packing == {"roles": False, "reminders": False}
 
 
@@ -119,7 +134,7 @@ def test_layout_close_packing_fits():
 
 def test_build_sheets_missing_reminder_skipped(tmp_path, tokens_dir):
     """Reminder files that do not exist are skipped."""
-    assert build_sheets([_role("a", 2)], tokens_dir, tmp_path / "out", _layout(), {}) == (1, 0)
+    assert build_sheets([([_role("a", 2)], tokens_dir)], tmp_path / "out", _layout(), {}) == (1, 0)
 
 
 def test_layout_validate():
@@ -139,7 +154,7 @@ def test_layout_validate():
 def test_page_pixel_size(tmp_path, tokens_dir):
     """The rendered page matches the layout's pixel size."""
     output = tmp_path / "out"
-    build_sheets([_role("a")], tokens_dir, output, _layout(page_width=256, page_height=512), {})
+    build_sheets([([_role("a")], tokens_dir)], output, _layout(page_width=256, page_height=512), {})
     with Image(filename=output / "roles.pdf", resolution=(300, 300)) as img:
         assert img.size == (256, 512)
 
